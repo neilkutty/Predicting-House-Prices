@@ -8,6 +8,7 @@ Created on Sat Apr  1 14:11:49 2017
 
 import pandas as pd
 import numpy as np
+import seaborn as sb
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor
 import matplotlib.pyplot as plt
@@ -23,10 +24,14 @@ htrain = htrain.drop('Id', axis=1)
 
 ###
 ##   Note: change "YearBuilt", "YearSold", "YearRM"
-#       to YearsSince vars..
+#       to "Years Since" vars..
 ##
 ###
+htrain['YrsOld'] = 2017 - htrain['YearBuilt']
+htrain['YrsRM'] = 2017 - htrain['YearRemodAdd']
+htrain['YrsSS'] = 2017 - htrain['YrSold']
 
+htrain = htrain.drop(['YearBuilt','YearRemodAdd','YrSold'],axis=1)
 
 #%%
 # Convert dataframe to all numeric for training models
@@ -55,9 +60,11 @@ for column in non2:
 trNum = pd.concat([numht,nonC], axis=1)
 
 #%%
-#Set up training models
+#Set up training model
 
-train, test = train_test_split(trNum, test_size = .3)
+np.random.seed(112)
+
+train, test = train_test_split(trNum, test_size = .25)
 
 # Train outcome and predictors 
 y = train.SalePrice
@@ -69,7 +76,7 @@ Xt = test.drop('SalePrice', axis=1)
 
 #%%
 #Set model parameters
-gbfit = GradientBoostingRegressor(n_estimators=1500, max_depth=2, loss='ls')
+gbfit = GradientBoostingRegressor(n_estimators=1500, max_depth=5, loss='ls')
 
 #Fit model
 gbfit.fit(X=X, y=y)
@@ -77,10 +84,14 @@ gbfit.fit(X=X, y=y)
 accuracy = gbfit.score(Xt, yt)
 predict = gbfit.predict(Xt)
 
+#%%
 
+# Show results of GBR with all variables
 
+sb.set_style('darkgrid')
 plt.scatter(predict, yt)
 
+print('Gradient Boosting Accuracy %s' % '{0:.2%}'.format(accuracy))
 #%%
 # Model feature importances ranking
 importances = gbfit.feature_importances_
@@ -94,3 +105,61 @@ for f in range(X.shape[1]):
 #plot
 feat_imp = pd.DataFrame({'Feature':list(X),
                          'Gini Importance':importances[indices]})
+
+plt.rcParams['figure.figsize']=(8,12)
+sb.set_style('whitegrid')
+ax = sb.barplot(x='Gini Importance', y='Feature', data=feat_imp)
+ax.set(xlabel='Gini Importance')
+plt.show()    
+
+
+#_________________________________________________________________________________>  
+#_________________________________________________________________________________>  
+#_________________________________________________________________________________>  
+#_________________________________________________________________________________>    
+#########
+########
+#######
+######
+#####
+####
+###
+##
+#__________________________#__________________________#__________________________>
+#__________________________#__________________________#__________________________>
+#__________________________#__________________________#__________________________>
+#__________________________#__________________________#__________________________>
+
+
+#%%
+#____________________________<::::::::::::::::::>______________________________
+#
+#       Re run model with only features with Gini Importance >= 0.01
+#
+#----------------------------<::::::::::::::::::>______________________________
+np.random.seed(10)
+
+trImp = pd.concat([trNum[feat_imp[feat_imp['Gini Importance']>=0.02]['Feature']], trNum['SalePrice']],axis=1)
+train, test = train_test_split(trImp, test_size = .25)
+
+# Train outcome and predictors 
+y = train.SalePrice
+X = train.drop('SalePrice', axis=1)
+
+# Test outcome and predictors
+yt = test.SalePrice
+Xt = test.drop('SalePrice', axis=1)
+
+#%%
+#Set model parameters
+gbfit = GradientBoostingRegressor(n_estimators=1500, max_depth=5, loss='ls')
+
+#Fit model
+gbfit.fit(X=X, y=y)
+
+accuracy = gbfit.score(Xt, yt)
+predict = gbfit.predict(Xt)
+
+
+sb.set_style('whitegrid')
+plt.scatter(predict, yt)
