@@ -11,11 +11,16 @@ import numpy as np
 import seaborn as sb
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+from sklearn.feature_selection import RFE
+from sklearn.linear_model import LogisticRegression
 import matplotlib.pyplot as plt
-
+import os
 
 
 #%%
+os.chdir("/Users/NNK/Documents/project/kaggle/houseprices")
 
 htrain = pd.read_csv('train.csv')
 htest = pd.read_csv('test.csv')
@@ -60,7 +65,7 @@ for column in non2:
 trNum = pd.concat([numht,nonC], axis=1)
 
 #%%
-#Set up training model
+#Set up training and test sets
 
 np.random.seed(112)
 
@@ -73,6 +78,25 @@ X = train.drop('SalePrice', axis=1)
 # Test outcome and predictors
 yt = test.SalePrice
 Xt = test.drop('SalePrice', axis=1)
+
+
+#%%  
+#      %------ Perform Feature Selection ------ %
+#------------------------------------------------------------------
+#KBest with Chi2 test
+kbest = SelectKBest(score_func=chi2, k=10)
+chifit = kbest.fit(X,y)
+features = chifit.transform(X)
+
+chifit._get_param_names
+
+#%%
+#Recursive Feature Elimination
+lr = LogisticRegression()
+rfe = RFE(lr, 10)
+rfefit = rfe.fit(X,y)
+#-------------------------------------------------------------------
+
 
 #%%
 #Set model parameters
