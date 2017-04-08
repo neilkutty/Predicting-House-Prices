@@ -14,11 +14,12 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import chi2
 from sklearn.feature_selection import RFE
+from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 import matplotlib.pyplot as plt
 import os
 
-
+np.random.seed(10)
 #%%
 os.chdir("/Users/NNK/Documents/project/kaggle/houseprices")
 
@@ -64,10 +65,11 @@ for column in non2:
 #Combine the native numerical and newly converted dataframes
 trNum = pd.concat([numht,nonC], axis=1)
 
+# Normalize dataframe
+trNum_norm = (trNum - trNum.mean()) / trNum.std()
+
 #%%
 #Set up training and test sets
-
-np.random.seed(112)
 
 train, test = train_test_split(trNum, test_size = .25)
 
@@ -81,7 +83,7 @@ Xt = test.drop('SalePrice', axis=1)
 
 
 #%%  
-#      %------ Perform Feature Selection ------ %
+#        %------ Perform Feature Selection ------ %
 #------------------------------------------------------------------
 #KBest with Chi2 test
 kbest = SelectKBest(score_func=chi2, k=10)
@@ -98,9 +100,68 @@ rfefit = rfe.fit(X,y)
 #-------------------------------------------------------------------
 
 
+#%% 
+#       =========  #PCA  --- Principal Components ==========
+
+#-------------------------------------------------------------------
+
+
+i = np.identity(trNum_norm.drop('SalePrice', axis=1).shape[1])
+
+pca = PCA(n_components=5, random_state=10)
+pca.fit_transform(trNum_norm.drop('SalePrice', axis=1).values)
+
+coef = pca.transform(i)
+pcp = pd.DataFrame(coef, columns = ['PC-1','PC-2','PC-3','PC-4','PC-5'],
+                           index = trNum_norm.drop('SalePrice', axis=1).columns)
+
+#%% Visualize Principal components
+
+pcp['max'] = pcp.max(axis=1)
+pcp['avg'] = pcp.mean(axis=1)
+pcp['sum'] = pcp.sum(axis=1)
+
+pcp = pcp.sort(columns=['max','sum','avg'], ascending=False)
+
+plt.rcParams['figure.figsize']=(10,20)
+sb.heatmap(pcp[['max','sum','avg']], annot=True, annot_kws={"size": 12})
+
 #%%
+#save top components
+
+
+top = list(pcp[(pcp['sum'] > pcp['sum'].mean())].index)
+
+
+#%%
+#<> ----  Create new train and test sets based on top principal components
+#<><>
+#<><><>
+#<><><><>
+#Set up training and test sets
+
+pcdata = pd.concat([trNum[top[0:25]],trNum['SalePrice']],axis=1)
+
+train, test = train_test_split(pcdata, test_size = .25)
+
+# Train outcome and predictors 
+y = train.SalePrice
+X = train.drop('SalePrice', axis=1)
+
+# Test outcome and predictors
+yt = test.SalePrice
+Xt = test.drop('SalePrice', axis=1)
+
+
+
+
+
+#%%
+#               ## ==== Model Training ==== ##
+
+#-----------------------------------------------------------------
 #Set model parameters
-gbfit = GradientBoostingRegressor(n_estimators=1500, max_depth=5, loss='ls')
+gbfit = GradientBoostingRegressor(n_estimators=500, loss='ls')
 
 #Fit model
 gbfit.fit(X=X, y=y)
@@ -145,6 +206,43 @@ plt.show()
 ########
 #######
 ######
+#%%  
+#----------------------------------------------------------------------]\\
+    #%%
+# -------------- Create Bins for SalesPrice Variable --------------------
+# ...
+## ... for use with Classification Models
+
+
+bins = [100000,150000,200000,250000,300000,350000,400000,
+        450000,500000,550000,600000,650000,700000]
+trNum['PriceRange'] = pd.cut(trNum.SalePrice, bins)
+
+#%%
+#Set up training and test sets
+
+pcdata = pd.concat([trNum[top[0:25]],trNum['SalePrice']],axis=1)
+
+train, test = train_test_split(pcdata, test_size = .25)
+
+# Train outcome and predictors 
+y = train.SalePrice
+X = train.drop('SalePrice', axis=1)
+
+# Test outcome and predictors
+yt = test.SalePrice
+Xt = test.drop('SalePrice', axis=1)
+
+
+
+
+
+#%%
+
+#%%
+
+#%%
+
 #####
 ####
 ###
