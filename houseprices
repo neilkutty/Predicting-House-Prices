@@ -11,16 +11,15 @@ import numpy as np
 import seaborn as sb
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.feature_selection import SelectKBest
-from sklearn.feature_selection import chi2
-from sklearn.feature_selection import RFE
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
-from sklearn.linear_model import LogisticRegression
 import matplotlib.pyplot as plt
 import os
 
 np.random.seed(10)
-#%%
+#%% 
 os.chdir("/Users/NNK/Documents/project/kaggle/houseprices")
 
 htrain = pd.read_csv('train.csv')
@@ -65,39 +64,9 @@ for column in non2:
 #Combine the native numerical and newly converted dataframes
 trNum = pd.concat([numht,nonC], axis=1)
 
-# Normalize dataframe
-trNum_norm = (trNum - trNum.mean()) / trNum.std()
+#Create normalized dataframe
+trNum_norm = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
 
-#%%
-#Set up training and test sets
-
-train, test = train_test_split(trNum, test_size = .25)
-
-# Train outcome and predictors 
-y = train.SalePrice
-X = train.drop('SalePrice', axis=1)
-
-# Test outcome and predictors
-yt = test.SalePrice
-Xt = test.drop('SalePrice', axis=1)
-
-
-#%%  
-#        %------ Perform Feature Selection ------ %
-#------------------------------------------------------------------
-#KBest with Chi2 test
-kbest = SelectKBest(score_func=chi2, k=10)
-chifit = kbest.fit(X,y)
-features = chifit.transform(X)
-
-chifit._get_param_names
-
-#%%
-#Recursive Feature Elimination
-lr = LogisticRegression()
-rfe = RFE(lr, 10)
-rfefit = rfe.fit(X,y)
-#-------------------------------------------------------------------
 
 
 #%% 
@@ -105,15 +74,17 @@ rfefit = rfe.fit(X,y)
 
 #-------------------------------------------------------------------
 
+#Create a different normalized dataframe for PCA
+trPCA = (trNum - trNum.mean()) / trNum.std()
 
-i = np.identity(trNum_norm.drop('SalePrice', axis=1).shape[1])
+i = np.identity(trPCA.drop('SalePrice', axis=1).shape[1])
 
-pca = PCA(n_components=5, random_state=10)
-pca.fit_transform(trNum_norm.drop('SalePrice', axis=1).values)
+pca = PCA(n_components=5, random_state=1010)
+pca.fit_transform(trPCA.drop('SalePrice', axis=1).values)
 
 coef = pca.transform(i)
 pcp = pd.DataFrame(coef, columns = ['PC-1','PC-2','PC-3','PC-4','PC-5'],
-                           index = trNum_norm.drop('SalePrice', axis=1).columns)
+                           index = trPCA.drop('SalePrice', axis=1).columns)
 
 #%% Visualize Principal components
 
@@ -121,17 +92,19 @@ pcp['max'] = pcp.max(axis=1)
 pcp['avg'] = pcp.mean(axis=1)
 pcp['sum'] = pcp.sum(axis=1)
 
-pcp = pcp.sort(columns=['max','sum','avg'], ascending=False)
+pcp = pcp.sort(columns=['sum','avg'], ascending=False)
 
 plt.rcParams['figure.figsize']=(10,20)
 sb.heatmap(pcp[['max','sum','avg']], annot=True, annot_kws={"size": 12})
 
 #%%
-#save top components
+# -----  -----  save top components
 
-
+#conditional top
 top = list(pcp[(pcp['sum'] > pcp['sum'].mean())].index)
 
+#sorted list
+pclist = list(pcp.index)
 
 #%%
 #<> ----  Create new train and test sets based on top principal components
@@ -140,9 +113,9 @@ top = list(pcp[(pcp['sum'] > pcp['sum'].mean())].index)
 #<><><><>
 #Set up training and test sets
 
-pcdata = pd.concat([trNum[top[0:25]],trNum['SalePrice']],axis=1)
+pcdata = pd.concat([trNum[pclist[0:78]],trNum['SalePrice']],axis=1)
 
-train, test = train_test_split(pcdata, test_size = .25)
+train, test = train_test_split(pcdata, test_size = .30, random_state = 1010)
 
 # Train outcome and predictors 
 y = train.SalePrice
@@ -158,14 +131,17 @@ Xt = test.drop('SalePrice', axis=1)
 
 #%%
 #               ## ==== Model Training ==== ##
+#
+#               ## ==== Gradient Boosting Regressor ==== ##
 
 #-----------------------------------------------------------------
 #Set model parameters
-gbfit = GradientBoostingRegressor(n_estimators=500, loss='ls')
+gbfit = GradientBoostingRegressor(n_estimators=500, loss='ls', random_state=1010)
 
 #Fit model
 gbfit.fit(X=X, y=y)
 
+#%% explore GB fit
 accuracy = gbfit.score(Xt, yt)
 predict = gbfit.predict(Xt)
 
@@ -174,7 +150,11 @@ predict = gbfit.predict(Xt)
 # Show results of GBR with all variables
 
 sb.set_style('darkgrid')
+plt.rcParams['figure.figsize']=(10,8)
 plt.scatter(predict, yt)
+plt.suptitle('test title')
+plt.xlabel('Predicted')
+plt.ylabel('Ground Truth')
 
 print('Gradient Boosting Accuracy %s' % '{0:.2%}'.format(accuracy))
 #%%
@@ -198,7 +178,9 @@ ax.set(xlabel='Gini Importance')
 plt.show()    
 
 
-#_________________________________________________________________________________>  
+#_________________________________________________________________________________> 
+
+# End Gradient Boosting .. 
 #_________________________________________________________________________________>  
 #_________________________________________________________________________________>  
 #_________________________________________________________________________________>    
@@ -214,32 +196,50 @@ plt.show()
 ## ... for use with Classification Models
 
 
-bins = [100000,150000,200000,250000,300000,350000,400000,
-        450000,500000,550000,600000,650000,700000]
+#bins = [0,100000,150000,200000,250000,300000,350000,400000,
+##       450000,500000,550000,600000,650000,700000]
+
+# .. need to create labels vector for 'mix type error (string and num)
+
+bins=7
 trNum['PriceRange'] = pd.cut(trNum.SalePrice, bins)
+trNum_norm['PriceRange'] = pd.cut(trNum.SalePrice, bins)
 
 #%%
-#Set up training and test sets
+#Set up training and test sets for classification
 
-pcdata = pd.concat([trNum[top[0:25]],trNum['SalePrice']],axis=1)
+cats = pd.concat([trNum_norm[pclist[0:78]],trNum_norm['PriceRange']],axis=1)
 
-train, test = train_test_split(pcdata, test_size = .25)
+train, test = train_test_split(cats, test_size = .25, random_state=10)
 
 # Train outcome and predictors 
-y = train.SalePrice
-X = train.drop('SalePrice', axis=1)
+y = train.PriceRange
+X = train.drop('PriceRange', axis=1)
 
 # Test outcome and predictors
-yt = test.SalePrice
-Xt = test.drop('SalePrice', axis=1)
+yt = test.PriceRange
+Xt = test.drop('PriceRange', axis=1)
 
 
 
 
 
 #%%
+# >>>>>>>>>>>>>>> Random Forest <<<<<<<<<<<<<<<<<<<<<
+np.random.seed(10)
+forest = RandomForestClassifier(n_estimators=1000)
+rfit = forest.fit(X,y)
+accuracy = rfit.score(Xt,yt)
+
+
 
 #%%
+# >>>>>>>>>>>>>>> MLP Classifier <<<<<<<<<<<<<<<<<<<<<
+
+mlp = MLPClassifier(solver='lbfgs', alpha=5, hidden_layer_sizes=(500,), random_state=10)
+
+fit = mlp.fit(X,y)
+accuracy = fit.score(Xt,yt)
 
 #%%
 
