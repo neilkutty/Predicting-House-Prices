@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
+from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
@@ -49,6 +50,8 @@ htrain = htrain.fillna(value=0)
 numht = htrain.select_dtypes(include = ['float64','int64'])
 nonht = htrain.select_dtypes(exclude = ['float64','int64'])
 
+# -- Get Category Codes --
+
 #Create empty df and pass all columns from non-numeric df 
 # converted to categorical
 non2 = pd.DataFrame()
@@ -64,8 +67,11 @@ for column in non2:
 #Combine the native numerical and newly converted dataframes
 trNum = pd.concat([numht,nonC], axis=1)
 
+temp = numht.drop('SalePrice',axis=1)
+
+trnorm = (temp - temp.mean()) / (temp.max() - temp.min())
 #Create normalized dataframe
-trNum_norm = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
+trNum_norm = pd.concat([trnorm,nonC,numht['SalePrice']], axis=1)
 
 
 
@@ -114,6 +120,8 @@ pclist = list(pcp.index)
 #Set up training and test sets
 
 pcdata = pd.concat([trNum[pclist[0:78]],trNum['SalePrice']],axis=1)
+nmdata = pd.concat([trNum_norm[pclist[0:78]],trNum_norm['SalePrice']],axis=1)
+nmonly = pd.concat([trNum_norm[list(numht.drop('SalePrice',axis=1))],trNum_norm['SalePrice']],axis=1)
 
 train, test = train_test_split(pcdata, test_size = .30, random_state = 1010)
 
@@ -125,8 +133,25 @@ X = train.drop('SalePrice', axis=1)
 yt = test.SalePrice
 Xt = test.drop('SalePrice', axis=1)
 
+# Create normalized train and test sets
 
+train, test = train_test_split(nmdata, test_size = .30, random_state = 1010)
 
+ynorm = train.SalePrice
+Xnorm = train.drop('SalePrice', axis=1)
+
+ytnorm = test.SalePrice
+Xtnorm = test.drop('SalePrice', axis=1)
+
+# Only normalized variables (continuous vars only)
+
+train, test = train_test_split(nmonly, test_size = .30, random_state = 1010)
+
+yc = train.SalePrice
+Xc = train.drop('SalePrice', axis=1)
+
+ytc = test.SalePrice
+Xtc = test.drop('SalePrice', axis=1)
 
 
 #%%
@@ -136,14 +161,15 @@ Xt = test.drop('SalePrice', axis=1)
 
 #-----------------------------------------------------------------
 #Set model parameters
-gbfit = GradientBoostingRegressor(n_estimators=500, loss='ls', random_state=1010)
+gbfit = GradientBoostingRegressor(n_estimators=777, loss='ls', random_state=1010)
 
 #Fit model
-gbfit.fit(X=X, y=y)
+gbfit.fit(X=Xnorm, y=ynorm)
 
 #%% explore GB fit
-accuracy = gbfit.score(Xt, yt)
-predict = gbfit.predict(Xt)
+accuracy = gbfit.score(Xtnorm, ytnorm)
+predict = gbfit.predict(Xtnorm)
+
 
 #%%
 
@@ -177,7 +203,22 @@ ax = sb.barplot(x='Gini Importance', y='Feature', data=feat_imp)
 ax.set(xlabel='Gini Importance')
 plt.show()    
 
+#_________________________________________________________________________________>  
+#_________________________________________________________________________________> 
+#%%
+# ------------ Gradient Boosting with only continuous variables ------------
 
+#Set model parameters
+gbfit = GradientBoostingRegressor(n_estimators=777, loss='ls', random_state=1010)
+
+#Fit model
+gbfit.fit(X=Xc, y=yc)
+
+#%% explore GB fit
+accuracy = gbfit.score(Xtc, ytc)
+predict = gbfit.predict(Xtc)
+
+#%%
 #_________________________________________________________________________________> 
 
 # End Gradient Boosting .. 
@@ -187,8 +228,29 @@ plt.show()
 #########
 ########
 #######
+#%%
+#%%
+#%%
+#
+# --------------------- MLP Regressor ---------------------------
+#
 ######
+
+mlpreg = MLPRegressor(solver='lbfgs', alpha=5, hidden_layer_sizes=(500,), random_state=10)
+mlpRfit = mlpreg.fit(Xc, yc)
+accuracy = mlpRfit.score(Xtc, ytc)
+
+
+#%%
 #%%  
+#%%  
+#%%  
+#%%  
+#%%  
+
+
+
+
 #----------------------------------------------------------------------]\\
     #%%
 # -------------- Create Bins for SalesPrice Variable --------------------
@@ -242,46 +304,3 @@ fit = mlp.fit(X,y)
 accuracy = fit.score(Xt,yt)
 
 #%%
-
-#####
-####
-###
-##
-#__________________________#__________________________#__________________________>
-#__________________________#__________________________#__________________________>
-#__________________________#__________________________#__________________________>
-#__________________________#__________________________#__________________________>
-
-
-#%%
-#____________________________<::::::::::::::::::>______________________________
-#
-#       Re run model with only features with Gini Importance >= 0.01
-#
-#----------------------------<::::::::::::::::::>______________________________
-np.random.seed(10)
-
-trImp = pd.concat([trNum[feat_imp[feat_imp['Gini Importance']>=0.02]['Feature']], trNum['SalePrice']],axis=1)
-train, test = train_test_split(trImp, test_size = .25)
-
-# Train outcome and predictors 
-y = train.SalePrice
-X = train.drop('SalePrice', axis=1)
-
-# Test outcome and predictors
-yt = test.SalePrice
-Xt = test.drop('SalePrice', axis=1)
-
-#%%
-#Set model parameters
-gbfit = GradientBoostingRegressor(n_estimators=1500, max_depth=5, loss='ls')
-
-#Fit model
-gbfit.fit(X=X, y=y)
-
-accuracy = gbfit.score(Xt, yt)
-predict = gbfit.predict(Xt)
-
-
-sb.set_style('whitegrid')
-plt.scatter(predict, yt)
