@@ -39,10 +39,19 @@ htrain['YrsSS'] = 2017 - htrain['YrSold']
 
 htrain = htrain.drop(['YearBuilt','YearRemodAdd','YrSold'],axis=1)
 
+
+
+
+
+#%% Data Cleaning
+
+htrain = htrain.dropna(axis=1)
+
 #%%
 # Convert dataframe to all numeric for training models
 #
 #-------------------------
+
 # Fill NAs with 0 first step
 htrain = htrain.fillna(value=0)
 
@@ -73,7 +82,51 @@ trnorm = (temp - temp.mean()) / (temp.max() - temp.min())
 #Create normalized dataframe
 trNum_norm = pd.concat([trnorm,nonC,numht['SalePrice']], axis=1)
 
+#%% 
+#%% 
+    #--------------- Exploratory Data Analysis ------------------
+#---------------------------------------------------------------------
+kw = {'axes.edgecolor': '0', 'text.color': '0', 'ytick.color': '0', 'xtick.color': '0',
+      'ytick.major.size': 5, 'xtick.major.size': 5, 'axes.labelcolor': '0'}
 
+sb.set_style("whitegrid", kw)
+sb.heatmap(trNum.corr())
+
+#%% 
+#           ------------ Garbage ----------- <><><><><><><><><><><>
+trNum.MSSubClass.plot()
+
+sb.distplot(trNum.MSSubClass)
+
+#%%  
+
+#       =========  #Plotly - Exploratory  ==========
+import plotly
+import plotly.plotly as py
+import plotly.graph_objs as go
+
+
+plotly.tools.set_credentials_file(username='sampsonsimpson', api_key='cxm2iF7KKBGZgXmDOU9S')
+
+layout = go.Layout(
+        title='House Price vs. Living Area'
+        )
+
+d = [
+     go.Scatter(
+             x=trNum['GrLivArea'],
+             y=trNum['SalePrice'],
+             mode = "markers",
+             marker= dict(size= 14,
+                    line= dict(width=1),
+                    color= trNum['SalePrice'],
+                    opacity= 0.7
+                   ))]
+
+
+fig = go.Figure(data=d, layout=layout)
+
+py.plot(fig, filename='house-prices')
 
 #%% 
 #       =========  #PCA  --- Principal Components ==========
@@ -98,7 +151,7 @@ pcp['max'] = pcp.max(axis=1)
 pcp['avg'] = pcp.mean(axis=1)
 pcp['sum'] = pcp.sum(axis=1)
 
-pcp = pcp.sort(columns=['sum','avg'], ascending=False)
+pcp = pcp.sort_values(by=['max','avg'], ascending=False)
 
 plt.rcParams['figure.figsize']=(10,20)
 sb.heatmap(pcp[['max','sum','avg']], annot=True, annot_kws={"size": 12})
@@ -119,8 +172,8 @@ pclist = list(pcp.index)
 #<><><><>
 #Set up training and test sets
 
-pcdata = pd.concat([trNum[pclist[0:78]],trNum['SalePrice']],axis=1)
-nmdata = pd.concat([trNum_norm[pclist[0:78]],trNum_norm['SalePrice']],axis=1)
+pcdata = pd.concat([trNum[pclist[0:len(pclist)]],trNum['SalePrice']],axis=1)
+nmdata = pd.concat([trNum_norm[pclist[0:len(pclist)]],trNum_norm['SalePrice']],axis=1)
 nmonly = pd.concat([trNum_norm[list(numht.drop('SalePrice',axis=1))],trNum_norm['SalePrice']],axis=1)
 
 train, test = train_test_split(pcdata, test_size = .30, random_state = 1010)
@@ -161,18 +214,17 @@ Xtc = test.drop('SalePrice', axis=1)
 
 #-----------------------------------------------------------------
 #Set model parameters
-gbfit = GradientBoostingRegressor(n_estimators=777, loss='ls', random_state=1010)
+gbfit = GradientBoostingRegressor(n_estimators=250, loss='ls', random_state=1010)
 
 #Fit model
-gbfit.fit(X=Xnorm, y=ynorm)
+gbfit.fit(X=X, y=y)
 
 #%% explore GB fit
-accuracy = gbfit.score(Xtnorm, ytnorm)
-predict = gbfit.predict(Xtnorm)
+accuracy = gbfit.score(Xt, yt)
+predict = gbfit.predict(Xt)
 
 
 #%%
-
 # Show results of GBR with all variables
 
 sb.set_style('darkgrid')
@@ -205,21 +257,6 @@ plt.show()
 
 #_________________________________________________________________________________>  
 #_________________________________________________________________________________> 
-#%%
-# ------------ Gradient Boosting with only continuous variables ------------
-
-#Set model parameters
-gbfit = GradientBoostingRegressor(n_estimators=777, loss='ls', random_state=1010)
-
-#Fit model
-gbfit.fit(X=Xc, y=yc)
-
-#%% explore GB fit
-accuracy = gbfit.score(Xtc, ytc)
-predict = gbfit.predict(Xtc)
-
-#%%
-#_________________________________________________________________________________> 
 
 # End Gradient Boosting .. 
 #_________________________________________________________________________________>  
@@ -236,9 +273,9 @@ predict = gbfit.predict(Xtc)
 #
 ######
 
-mlpreg = MLPRegressor(solver='lbfgs', alpha=5, hidden_layer_sizes=(500,), random_state=10)
-mlpRfit = mlpreg.fit(Xc, yc)
-accuracy = mlpRfit.score(Xtc, ytc)
+mlpreg = MLPRegressor(solver='lbfgs', alpha=50, hidden_layer_sizes=(500,), random_state=10)
+mlpRfit = mlpreg.fit(Xnorm, ynorm)
+accuracy = mlpRfit.score(Xtnorm, ytnorm)
 
 
 #%%
@@ -250,8 +287,10 @@ accuracy = mlpRfit.score(Xtc, ytc)
 
 
 
-
-#----------------------------------------------------------------------]\\
+#----------------------------------------------------------------------------------------]\\
+#----------------------------------------------------------------------------------------]\\
+#----------------------------------------------------------------------------------------]\\
+#----------------------------------------------------------------------------------------]\\
     #%%
 # -------------- Create Bins for SalesPrice Variable --------------------
 # ...
@@ -270,7 +309,7 @@ trNum_norm['PriceRange'] = pd.cut(trNum.SalePrice, bins)
 #%%
 #Set up training and test sets for classification
 
-cats = pd.concat([trNum_norm[pclist[0:78]],trNum_norm['PriceRange']],axis=1)
+cats = pd.concat([trNum_norm[pclist[0:len(pclist)]],trNum_norm['PriceRange']],axis=1)
 
 train, test = train_test_split(cats, test_size = .25, random_state=10)
 
@@ -284,12 +323,10 @@ Xt = test.drop('PriceRange', axis=1)
 
 
 
-
-
 #%%
 # >>>>>>>>>>>>>>> Random Forest <<<<<<<<<<<<<<<<<<<<<
-np.random.seed(10)
-forest = RandomForestClassifier(n_estimators=1000)
+
+forest = RandomForestClassifier(n_estimators=1000, random_state=1010)
 rfit = forest.fit(X,y)
 accuracy = rfit.score(Xt,yt)
 
