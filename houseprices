@@ -39,19 +39,17 @@ htrain['YrsSS'] = 2017 - htrain['YrSold']
 
 htrain = htrain.drop(['YearBuilt','YearRemodAdd','YrSold'],axis=1)
 
+htrain['TotalSF'] = htrain.GrLivArea + htrain.TotalBsmtSF
 
-
-
-
-#%% Data Cleaning
-
-htrain = htrain.dropna(axis=1)
 
 #%%
+# ------------------- DATA CLEANING ------------------------- #
+
+#...............................................................
 # Convert dataframe to all numeric for training models
 #
 #-------------------------
-
+#htrain = htrain.dropna(axis=1)
 # Fill NAs with 0 first step
 htrain = htrain.fillna(value=0)
 
@@ -86,17 +84,45 @@ trNum_norm = pd.concat([trnorm,nonC,numht['SalePrice']], axis=1)
 #%% 
     #--------------- Exploratory Data Analysis ------------------
 #---------------------------------------------------------------------
-kw = {'axes.edgecolor': '0', 'text.color': '0', 'ytick.color': '0', 'xtick.color': '0',
-      'ytick.major.size': 5, 'xtick.major.size': 5, 'axes.labelcolor': '0'}
+kw = {'axes.edgecolor': '0', 'text.color': '0', 'ytick.color': '0', 
+      'xtick.color': '0','ytick.major.size': 5, 'xtick.major.size': 5,
+      'axes.labelcolor': '0'}
 
-sb.set_style("whitegrid", kw)
-sb.heatmap(trNum.corr())
+sb.set_style("darkgrid", kw)
 
 #%% 
 #           ------------ Garbage ----------- <><><><><><><><><><><>
-trNum.MSSubClass.plot()
+sb.lmplot('OverallQual','SalePrice',data=trNum,hue='TotRmsAbvGrd',fit_reg=False)
 
-sb.distplot(trNum.MSSubClass)
+htrain.ExterQual.value_counts()
+
+sfcols = [col for col in htrain.columns if 'SF' in col]
+htrain[sfcols].head
+#...........
+#%%
+
+sb.lmplot('GrLivArea','SalePrice',trNum, hue='TotRmsAbvGrd', fit_reg=False)
+
+#%%
+
+#%%
+
+#%%
+
+#............
+#.............
+#..............
+#...............
+
+#%%
+#     >>> Correlation Plots
+
+plt.rcParams['figure.figsize']=(6,12)
+corrdf = trNum.corr()
+ycorr = corrdf[['SalePrice']]
+ycorr = ycorr.sort_values(by=['SalePrice'])
+ycorr.drop(['SalePrice']).plot(kind='barh')
+
 
 #%%  
 
@@ -106,7 +132,8 @@ import plotly.plotly as py
 import plotly.graph_objs as go
 
 
-plotly.tools.set_credentials_file(username='sampsonsimpson', api_key='cxm2iF7KKBGZgXmDOU9S')
+plotly.tools.set_credentials_file(username='sampsonsimpson', 
+                                  api_key='cxm2iF7KKBGZgXmDOU9S')
 
 layout = go.Layout(
         title='House Price vs. Living Area'
