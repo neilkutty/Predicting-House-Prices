@@ -52,13 +52,19 @@ htrain['TotalSF'] = htrain.GrLivArea + htrain.TotalBsmtSF
 #htrain = htrain.dropna(axis=1)
 # Fill NAs with 0 first step
 htrain = htrain.fillna(value=0)
+sd_cols = pd.get_dummies(htrain.SaleCondition, prefix='SaleCon')
+bt_cols = pd.get_dummies(htrain.BldgType, prefix='BldgType')
+style_cols = pd.get_dummies(htrain.HouseStyle, prefix='HouseStyle')
+ms_cols = pd.get_dummies(htrain.Exterior1st, prefix='Exterior1st')
+nb_cols = pd.get_dummies(htrain.GarageType, prefix='GarageType')
+htrain = pd.concat([htrain,sd_cols, bt_cols, style_cols,
+                    ms_cols, nb_cols], axis=1)
 
 # Seperate numerical and non-numerical columns into dataframes
 numht = htrain.select_dtypes(include = ['float64','int64'])
 nonht = htrain.select_dtypes(exclude = ['float64','int64'])
 
 # -- Get Category Codes --
-
 #Create empty df and pass all columns from non-numeric df 
 # converted to categorical
 non2 = pd.DataFrame()
@@ -73,12 +79,13 @@ for column in non2:
     
 #Combine the native numerical and newly converted dataframes
 trNum = pd.concat([numht,nonC], axis=1)
-
 temp = numht.drop('SalePrice',axis=1)
 
 trnorm = (temp - temp.mean()) / (temp.max() - temp.min())
 #Create normalized dataframe
 trNum_norm = pd.concat([trnorm,nonC,numht['SalePrice']], axis=1)
+
+normdf = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
 
 #%% 
 #%% 
@@ -117,7 +124,7 @@ sb.lmplot('GrLivArea','SalePrice',trNum, hue='TotRmsAbvGrd', fit_reg=False)
 #%%
 #     >>> Correlation Plots
 
-plt.rcParams['figure.figsize']=(6,12)
+plt.rcParams['figure.figsize']=(8,14)
 corrdf = trNum.corr()
 ycorr = corrdf[['SalePrice']]
 ycorr = ycorr.sort_values(by=['SalePrice'])
@@ -155,7 +162,14 @@ fig = go.Figure(data=d, layout=layout)
 
 py.plot(fig, filename='house-prices')
 
+
+
 #%% 
+
+
+
+
+
 #       =========  #PCA  --- Principal Components ==========
 
 #-------------------------------------------------------------------
@@ -178,10 +192,17 @@ pcp['max'] = pcp.max(axis=1)
 pcp['avg'] = pcp.mean(axis=1)
 pcp['sum'] = pcp.sum(axis=1)
 
-pcp = pcp.sort_values(by=['max','avg'], ascending=False)
+pcp = pcp.sort_values(by=['max'], ascending=False)
 
 plt.rcParams['figure.figsize']=(10,20)
 sb.heatmap(pcp[['max','sum','avg']], annot=True, annot_kws={"size": 12})
+
+#%% Combine PCA results and Pearson Correlation results ---<><><><><><><><><><>
+
+# --------------------- <><><><>< * * * * * * * * * * * * * * * * * ><><><><>
+
+ycorr = ycorr.rename(columns={'SalePrice':'YCorrelation'})
+fsel = pd.concat([ycorr.drop('SalePrice',axis=0), pcp], axis=1)
 
 #%%
 # -----  -----  save top components
@@ -193,7 +214,7 @@ top = list(pcp[(pcp['sum'] > pcp['sum'].mean())].index)
 pclist = list(pcp.index)
 
 #%%
-#<> ----  Create new train and test sets based on top principal components
+#<> ----  Create new train and test sets based on top principal components ---
 #<><>
 #<><><>
 #<><><><>
@@ -201,8 +222,8 @@ pclist = list(pcp.index)
 
 pcdata = pd.concat([trNum[pclist[0:len(pclist)]],trNum['SalePrice']],axis=1)
 nmdata = pd.concat([trNum_norm[pclist[0:len(pclist)]],trNum_norm['SalePrice']],axis=1)
-nmonly = pd.concat([trNum_norm[list(numht.drop('SalePrice',axis=1))],trNum_norm['SalePrice']],axis=1)
-
+#nmonly = pd.concat([trNum_norm[list(numht.drop('SalePrice',axis=1))],trNum_norm['SalePrice']],axis=1)
+nmonly = normdf
 train, test = train_test_split(pcdata, test_size = .30, random_state = 1010)
 
 # Train outcome and predictors 
@@ -215,7 +236,7 @@ Xt = test.drop('SalePrice', axis=1)
 
 # Create normalized train and test sets
 
-train, test = train_test_split(nmdata, test_size = .30, random_state = 1010)
+train, test = train_test_split(nmonly, test_size = .30, random_state = 1010)
 
 ynorm = train.SalePrice
 Xnorm = train.drop('SalePrice', axis=1)
@@ -249,6 +270,11 @@ gbfit.fit(X=X, y=y)
 #%% explore GB fit
 accuracy = gbfit.score(Xt, yt)
 predict = gbfit.predict(Xt)
+
+#%% GB with Normalized variables
+gbfit.fit(X=Xnorm, y=ynorm)
+accuracy = gbfit.score(Xtnorm,ytnorm)
+predict = gbfit.predict(Xtnorm)
 
 
 #%%
