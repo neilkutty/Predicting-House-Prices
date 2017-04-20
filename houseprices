@@ -9,6 +9,7 @@ Created on Sat Apr  1 14:11:49 2017
 import pandas as pd
 import numpy as np
 import seaborn as sb
+from sklearn import linear_model
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import RandomForestClassifier
@@ -244,15 +245,7 @@ Xnorm = train.drop('SalePrice', axis=1)
 ytnorm = test.SalePrice
 Xtnorm = test.drop('SalePrice', axis=1)
 
-# Only normalized variables (continuous vars only)
 
-train, test = train_test_split(nmonly, test_size = .30, random_state = 1010)
-
-yc = train.SalePrice
-Xc = train.drop('SalePrice', axis=1)
-
-ytc = test.SalePrice
-Xtc = test.drop('SalePrice', axis=1)
 
 
 #%%
@@ -316,6 +309,11 @@ plt.show()
 #_________________________________________________________________________________>  
 #_________________________________________________________________________________>    
 #########
+
+#%%#   ------- Linear Models --------
+reg = linear_model.SGDRegressor(alpha=1)
+reg.fit(Xnorm,ynorm)
+accuracy = reg.score(Xtnorm,ytnorm)
 ########
 #######
 #%%
