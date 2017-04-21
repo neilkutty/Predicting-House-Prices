@@ -8,7 +8,12 @@ Created on Sat Apr  1 14:11:49 2017
 
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 import seaborn as sb
+import plotly
+import cufflinks as cf
+import plotly.plotly as py
+import plotly.graph_objs as go
 from sklearn import linear_model
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor
@@ -17,7 +22,6 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
 import os
 
 np.random.seed(10)
@@ -47,9 +51,7 @@ htrain['TotalSF'] = htrain.GrLivArea + htrain.TotalBsmtSF
 # ------------------- DATA CLEANING ------------------------- #
 
 #...............................................................
-# Convert dataframe to all numeric for training models
-#
-#-------------------------
+
 #htrain = htrain.dropna(axis=1)
 # Fill NAs with 0 first step
 htrain = htrain.fillna(value=0)
@@ -61,18 +63,23 @@ nb_cols = pd.get_dummies(htrain.GarageType, prefix='GarageType')
 htrain = pd.concat([htrain,sd_cols, bt_cols, style_cols,
                     ms_cols, nb_cols], axis=1)
 
-# Seperate numerical and non-numerical columns into dataframes
+
+# Convert dataframe to all numeric for training models
+#
+#-------------------------
+
+#1.) Seperate numerical and non-numerical columns into dataframes
 numht = htrain.select_dtypes(include = ['float64','int64'])
 nonht = htrain.select_dtypes(exclude = ['float64','int64'])
 
 # -- Get Category Codes --
-#Create empty df and pass all columns from non-numeric df 
+#2.) Create empty df and pass all columns from non-numeric df 
 # converted to categorical
 non2 = pd.DataFrame()
 for column in nonht:
     non2[column] = pd.Categorical(nonht[column])
 
-#Create another empty df and pass all columns from categorical df
+#3.) Create another empty df and pass all columns from categorical df
 # converted to codes    
 nonC = pd.DataFrame()
 for column in non2:
@@ -80,13 +87,9 @@ for column in non2:
     
 #Combine the native numerical and newly converted dataframes
 trNum = pd.concat([numht,nonC], axis=1)
-temp = numht.drop('SalePrice',axis=1)
+#Create normalized dataframe if needed
+trNorm = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
 
-trnorm = (temp - temp.mean()) / (temp.max() - temp.min())
-#Create normalized dataframe
-trNum_norm = pd.concat([trnorm,nonC,numht['SalePrice']], axis=1)
-
-normdf = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
 
 #%% 
 #%% 
@@ -113,14 +116,6 @@ sb.lmplot('GrLivArea','SalePrice',trNum, hue='TotRmsAbvGrd', fit_reg=False)
 
 #%%
 
-#%%
-
-#%%
-
-#............
-#.............
-#..............
-#...............
 
 #%%
 #     >>> Correlation Plots
@@ -135,9 +130,7 @@ ycorr.drop(['SalePrice']).plot(kind='barh')
 #%%  
 
 #       =========  #Plotly - Exploratory  ==========
-import plotly
-import plotly.plotly as py
-import plotly.graph_objs as go
+
 
 
 plotly.tools.set_credentials_file(username='sampsonsimpson', 
@@ -164,6 +157,14 @@ fig = go.Figure(data=d, layout=layout)
 py.plot(fig, filename='house-prices')
 
 
+#%%
+
+#%%
+
+#............
+#.............
+#..............
+#...............
 
 #%% 
 
@@ -198,6 +199,33 @@ pcp = pcp.sort_values(by=['max'], ascending=False)
 plt.rcParams['figure.figsize']=(10,20)
 sb.heatmap(pcp[['max','sum','avg']], annot=True, annot_kws={"size": 12})
 
+#%% --Alternative PCA
+
+#       =========  #PCA 2 --- Principal Components ==========
+
+#-------------------------------------------------------------------
+
+#Create a different normalized dataframe for PCA
+trPCA = (trNum - trNum.mean()) / trNum.std()
+
+i = np.identity(trPCA.drop('SalePrice', axis=1).shape[1])
+
+pca = PCA(n_components=5, random_state=1010)
+pca.fit_transform(trPCA.drop('SalePrice', axis=1).values)
+
+coef = pca.transform(i)
+pcp = pd.DataFrame(coef, columns = ['PC-1','PC-2','PC-3','PC-4','PC-5'],
+                           index = trPCA.drop('SalePrice', axis=1).columns)
+
+pcp['max'] = pcp.max(axis=1)
+pcp['avg'] = pcp.mean(axis=1)
+
+
+pcp = pcp.sort_values(by=['avg'], ascending=False)
+
+plt.rcParams['figure.figsize']=(10,20)
+sb.heatmap(pcp, annot=True, annot_kws={"size": 12})
+
 #%% Combine PCA results and Pearson Correlation results ---<><><><><><><><><><>
 
 # --------------------- <><><><>< * * * * * * * * * * * * * * * * * ><><><><>
@@ -209,7 +237,7 @@ fsel = pd.concat([ycorr.drop('SalePrice',axis=0), pcp], axis=1)
 # -----  -----  save top components
 
 #conditional top
-top = list(pcp[(pcp['sum'] > pcp['sum'].mean())].index)
+top = list(pcp[(pcp['max'] > pcp['max'].mean())].index)
 
 #sorted list
 pclist = list(pcp.index)
@@ -222,9 +250,9 @@ pclist = list(pcp.index)
 #Set up training and test sets
 
 pcdata = pd.concat([trNum[pclist[0:len(pclist)]],trNum['SalePrice']],axis=1)
-nmdata = pd.concat([trNum_norm[pclist[0:len(pclist)]],trNum_norm['SalePrice']],axis=1)
+nmdata = pd.concat([trNorm[pclist[0:len(pclist)]],trNorm['SalePrice']],axis=1)
 #nmonly = pd.concat([trNum_norm[list(numht.drop('SalePrice',axis=1))],trNum_norm['SalePrice']],axis=1)
-nmonly = normdf
+
 train, test = train_test_split(pcdata, test_size = .30, random_state = 1010)
 
 # Train outcome and predictors 
@@ -237,7 +265,7 @@ Xt = test.drop('SalePrice', axis=1)
 
 # Create normalized train and test sets
 
-train, test = train_test_split(nmonly, test_size = .30, random_state = 1010)
+train, test = train_test_split(nmdata, test_size = .30, random_state = 1010)
 
 ynorm = train.SalePrice
 Xnorm = train.drop('SalePrice', axis=1)
@@ -353,15 +381,15 @@ accuracy = mlpRfit.score(Xtnorm, ytnorm)
 
 # .. need to create labels vector for 'mix type error (string and num)
 
-bins=7
+bins=5
 trNum['PriceRange'] = pd.cut(trNum.SalePrice, bins)
-trNum_norm['PriceRange'] = pd.cut(trNum.SalePrice, bins)
+trNorm['PriceRange'] = pd.cut(trNum.SalePrice, bins)
 
 #%%
 #Set up training and test sets for classification
 
-cats = pd.concat([trNum_norm[pclist[0:len(pclist)]],trNum_norm['PriceRange']],axis=1)
-
+#cats = pd.concat([trNum_norm,trNum_norm['PriceRange']],axis=1)
+cats = trNorm.drop('SalePrice',axis=1)
 train, test = train_test_split(cats, test_size = .25, random_state=10)
 
 # Train outcome and predictors 
