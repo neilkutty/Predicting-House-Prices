@@ -6,6 +6,7 @@ Created on Sat Apr  1 14:11:49 2017
 @author: NNK
 """
 
+#%%
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +15,9 @@ import plotly
 import cufflinks as cf
 import plotly.plotly as py
 import plotly.graph_objs as go
+#from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 from sklearn import linear_model
+#from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import RandomForestClassifier
@@ -25,7 +28,7 @@ from sklearn.decomposition import PCA
 import os
 
 np.random.seed(10)
-#%% 
+ 
 os.chdir("/Users/NNK/Documents/project/kaggle/houseprices")
 
 htrain = pd.read_csv('train.csv')
@@ -47,7 +50,6 @@ htrain = htrain.drop(['YearBuilt','YearRemodAdd','YrSold'],axis=1)
 htrain['TotalSF'] = htrain.GrLivArea + htrain.TotalBsmtSF
 
 
-#%%
 # ------------------- DATA CLEANING ------------------------- #
 
 #...............................................................
@@ -55,13 +57,14 @@ htrain['TotalSF'] = htrain.GrLivArea + htrain.TotalBsmtSF
 #htrain = htrain.dropna(axis=1)
 # Fill NAs with 0 first step
 htrain = htrain.fillna(value=0)
-sd_cols = pd.get_dummies(htrain.SaleCondition, prefix='SaleCon')
-bt_cols = pd.get_dummies(htrain.BldgType, prefix='BldgType')
-style_cols = pd.get_dummies(htrain.HouseStyle, prefix='HouseStyle')
-ms_cols = pd.get_dummies(htrain.Exterior1st, prefix='Exterior1st')
-nb_cols = pd.get_dummies(htrain.GarageType, prefix='GarageType')
-htrain = pd.concat([htrain,sd_cols, bt_cols, style_cols,
-                    ms_cols, nb_cols], axis=1)
+#sd_cols = pd.get_dummies(htrain.SaleCondition, prefix='SaleCon')
+#bt_cols = pd.get_dummies(htrain.BldgType, prefix='BldgType')
+#style_cols = pd.get_dummies(htrain.HouseStyle, prefix='HouseStyle')
+#ms_cols = pd.get_dummies(htrain.Exterior1st, prefix='Exterior1st')
+#nb_cols = pd.get_dummies(htrain.GarageType, prefix='GarageType')
+#htrain = pd.concat([htrain,sd_cols, bt_cols, style_cols,ms_cols, nb_cols], axis=1)
+
+#htrain = pd.concat([htrain,sd_cols], axis=1)
 
 
 # Convert dataframe to all numeric for training models
@@ -92,39 +95,80 @@ trNorm = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
 
 
 #%% 
-#%% 
-    #--------------- Exploratory Data Analysis ------------------
-#---------------------------------------------------------------------
-kw = {'axes.edgecolor': '0', 'text.color': '0', 'ytick.color': '0', 
-      'xtick.color': '0','ytick.major.size': 5, 'xtick.major.size': 5,
-      'axes.labelcolor': '0'}
 
-sb.set_style("darkgrid", kw)
+train, test = train_test_split(trNum, test_size = .30, random_state = 1010)
 
-#%% 
-#           ------------ Garbage ----------- <><><><><><><><><><><>
-sb.lmplot('OverallQual','SalePrice',data=trNum,hue='TotRmsAbvGrd',fit_reg=False)
+# Train outcome and predictors 
+y = train.SalePrice
+X = train.drop('SalePrice', axis=1)
 
-htrain.ExterQual.value_counts()
+# Test outcome and predictors
+yt = test.SalePrice
+Xt = test.drop('SalePrice', axis=1)
 
-sfcols = [col for col in htrain.columns if 'SF' in col]
-htrain[sfcols].head
-#...........
-#%%
+# Create normalized train and test sets
 
-sb.lmplot('GrLivArea','SalePrice',trNum, hue='TotRmsAbvGrd', fit_reg=False)
+train, test = train_test_split(trNorm, test_size = .30, random_state = 1010)
 
-#%%
+ynorm = train.SalePrice
+Xnorm = train.drop('SalePrice', axis=1)
 
+ytnorm = test.SalePrice
+Xtnorm = test.drop('SalePrice', axis=1)
 
 #%%
-#     >>> Correlation Plots
 
-plt.rcParams['figure.figsize']=(8,14)
+#...............................................................
+#     ----------- Plotly - Correlation Plot -----------
+#...............................................................
+
 corrdf = trNum.corr()
 ycorr = corrdf[['SalePrice']]
 ycorr = ycorr.sort_values(by=['SalePrice'])
-ycorr.drop(['SalePrice']).plot(kind='barh')
+
+l = go.Layout(title='Correlation of All Variables to Sale Price',
+#    xaxis=dict(
+#        autorange=True,
+#        showgrid=False,
+#        zeroline=True,
+#        showline=False,
+#        autotick=True,
+#        ticks='-',
+#        showticklabels=False
+#    ),
+#    yaxis=dict(
+#        autorange=True,
+#        showgrid=False,
+#        zeroline=False,
+#        showline=False,
+#        autotick=False,
+#        ticks='-',
+#        showticklabels=True
+#    ),
+      autosize=False,
+     # width=500,
+      height=2000,
+      margin=go.Margin(
+              l=200,
+              r=50,
+              #b=100,
+              #t=100,
+              pad=1
+              )
+      )
+              
+d = [go.Bar(y=ycorr[(ycorr.index <> 'SalePrice')].index,x=ycorr.SalePrice,
+            marker=dict(                    
+                    color = ycorr.SalePrice, #set color equal to a variable
+                    colorscale='Viridis',
+                    showscale=True
+                    ),
+            orientation='h')]
+
+fig = go.Figure(data=d,layout=l)
+#cf.iplot(fig, filename='correlation')
+py.plot(fig, filename='correlation')
+
 
 
 #%%  
@@ -136,9 +180,22 @@ ycorr.drop(['SalePrice']).plot(kind='barh')
 plotly.tools.set_credentials_file(username='sampsonsimpson', 
                                   api_key='cxm2iF7KKBGZgXmDOU9S')
 
+buttons = []
+for i in list(trNum):
+    buttons.append(dict(args=[i],
+             label=i, method='restyle'))
+
 layout = go.Layout(
-        title='House Price vs. Living Area'
-        )
+        title='House Price vs. Living Area',
+        updatemenus=list([
+        dict(x=-0.1, y=0.7,
+             yanchor='middle',
+             bgcolor='c7c7c7',
+             borderwidth=2,
+             bordercolor='#ffd6dc',
+             buttons=list(buttons)),
+             ]),
+             )
 
 d = [
      go.Scatter(
@@ -156,15 +213,12 @@ fig = go.Figure(data=d, layout=layout)
 
 py.plot(fig, filename='house-prices')
 
+# ---  Jupyter Notebook Version
+#cf.iplot(fig, filename='house-prices')
+
+
 
 #%%
-
-#%%
-
-#............
-#.............
-#..............
-#...............
 
 #%% 
 
