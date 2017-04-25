@@ -6,6 +6,7 @@ Created on Sat Apr  1 14:11:49 2017
 @author: NNK
 Kaggle submission results
 """
+#%%
 import pandas as pd
 import numpy as np
 from sklearn import linear_model
@@ -50,12 +51,14 @@ htest['TotalSF'] = htest.GrLivArea + htest.TotalBsmtSF
 #htest = htest.dropna(axis=1)
 # Fill NAs with 0 first step
 htest = htest.fillna(value=0)
-#sd_cols = pd.get_dummies(htest.SaleCondition, prefix='SaleCon')
+#msT_cols = pd.get_dummies(htest.MSZoning, prefix='MSZoning')
 #bt_cols = pd.get_dummies(htest.BldgType, prefix='BldgType')
 #style_cols = pd.get_dummies(htest.HouseStyle, prefix='HouseStyle')
 #ms_cols = pd.get_dummies(htest.Exterior1st, prefix='Exterior1st')
 #nb_cols = pd.get_dummies(htest.GarageType, prefix='GarageType')
 #htest = pd.concat([htest,sd_cols, bt_cols, style_cols], axis=1)
+
+#htest = pd.concat([htest,msT_cols],axis=1)
 
 # Seperate numerical and non-numerical columns into dataframes
 numht = htest.select_dtypes(include = ['float64','int64'])
@@ -75,13 +78,15 @@ for column in non2:
     nonC[column] = non2[column].cat.codes
     
 #Combine the native numerical and newly converted dataframes
-trNum = pd.concat([numht,nonC], axis=1)
+tstNum = pd.concat([numht,nonC], axis=1)
 
 #Create normalized dataframe with normalized outcome var
-normdf = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
+normdf = (tstNum - tstNum.mean()) / (tstNum.max() - tstNum.min())
 
+#tstNum = tstNum[pclist[0:45]]
+#%%
+kaggle = gbfit.predict(tstNum)
 htest = pd.read_csv('test.csv')
-kaggle = gbfit.predict(trNum)
 kag_submission = pd.DataFrame({'Id':htest.Id,
                                'SalePrice':kaggle})
 
