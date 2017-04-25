@@ -23,7 +23,6 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.neural_network import MLPRegressor
-from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
 import os
 
@@ -57,14 +56,15 @@ htrain['TotalSF'] = htrain.GrLivArea + htrain.TotalBsmtSF
 #htrain = htrain.dropna(axis=1)
 # Fill NAs with 0 first step
 htrain = htrain.fillna(value=0)
+#htrain = htrain.loc[htrain.GrLivArea != 5642]
 #sd_cols = pd.get_dummies(htrain.SaleCondition, prefix='SaleCon')
 #bt_cols = pd.get_dummies(htrain.BldgType, prefix='BldgType')
 #style_cols = pd.get_dummies(htrain.HouseStyle, prefix='HouseStyle')
 #ms_cols = pd.get_dummies(htrain.Exterior1st, prefix='Exterior1st')
 #nb_cols = pd.get_dummies(htrain.GarageType, prefix='GarageType')
-#htrain = pd.concat([htrain,sd_cols, bt_cols, style_cols,ms_cols, nb_cols], axis=1)
 
-#htrain = pd.concat([htrain,sd_cols], axis=1)
+
+#htrain = pd.concat([htrain,sd_cols,bt_cols,style_cols,ms_cols,nb_cols], axis=1)
 
 
 # Convert dataframe to all numeric for training models
@@ -94,8 +94,6 @@ trNum = pd.concat([numht,nonC], axis=1)
 trNorm = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
 
 
-#%% 
-
 train, test = train_test_split(trNum, test_size = .30, random_state = 1010)
 
 # Train outcome and predictors 
@@ -116,118 +114,46 @@ Xnorm = train.drop('SalePrice', axis=1)
 ytnorm = test.SalePrice
 Xtnorm = test.drop('SalePrice', axis=1)
 
-#%%
-
-#...............................................................
-#     ----------- Plotly - Correlation Plot -----------
-#...............................................................
-
-corrdf = trNum.corr()
-ycorr = corrdf[['SalePrice']]
-ycorr = ycorr.sort_values(by=['SalePrice'])
-
-l = go.Layout(title='Correlation of All Variables to Sale Price',
-#    xaxis=dict(
-#        autorange=True,
-#        showgrid=False,
-#        zeroline=True,
-#        showline=False,
-#        autotick=True,
-#        ticks='-',
-#        showticklabels=False
-#    ),
-#    yaxis=dict(
-#        autorange=True,
-#        showgrid=False,
-#        zeroline=False,
-#        showline=False,
-#        autotick=False,
-#        ticks='-',
-#        showticklabels=True
-#    ),
-      autosize=False,
-     # width=500,
-      height=2000,
-      margin=go.Margin(
-              l=200,
-              r=50,
-              #b=100,
-              #t=100,
-              pad=1
-              )
-      )
-              
-d = [go.Bar(y=ycorr[(ycorr.index <> 'SalePrice')].index,x=ycorr.SalePrice,
-            marker=dict(                    
-                    color = ycorr.SalePrice, #set color equal to a variable
-                    colorscale='Viridis',
-                    showscale=True
-                    ),
-            orientation='h')]
-
-fig = go.Figure(data=d,layout=l)
-#cf.iplot(fig, filename='correlation')
-py.plot(fig, filename='correlation')
-
-
-
-#%%  
-
-#       =========  #Plotly - Exploratory  ==========
-
-
-
-plotly.tools.set_credentials_file(username='sampsonsimpson', 
-                                  api_key='cxm2iF7KKBGZgXmDOU9S')
-
-buttons = []
-for i in list(trNum):
-    buttons.append(dict(args=[i],
-             label=i, method='restyle'))
-
-layout = go.Layout(
-        title='House Price vs. Living Area',
-        updatemenus=list([
-        dict(x=-0.1, y=0.7,
-             yanchor='middle',
-             bgcolor='c7c7c7',
-             borderwidth=2,
-             bordercolor='#ffd6dc',
-             buttons=list(buttons)),
-             ]),
-             )
-
-d = [
-     go.Scatter(
-             x=trNum['GrLivArea'],
-             y=trNum['SalePrice'],
-             mode = "markers",
-             marker= dict(size= 14,
-                    line= dict(width=1),
-                    color= trNum['SalePrice'],
-                    opacity= 0.7
-                   ))]
-
-
-fig = go.Figure(data=d, layout=layout)
-
-py.plot(fig, filename='house-prices')
-
-# ---  Jupyter Notebook Version
-#cf.iplot(fig, filename='house-prices')
-
 
 
 #%%
+#%%
+#               ## ==== Model Training ==== ##
+#
+#               ## ==== Gradient Boosting Regressor ==== ##
+
+#-----------------------------------------------------------------
+#Set model parameters
+gbfit = GradientBoostingRegressor(n_estimators=250, loss='ls', random_state=1010)
+
+#Fit model
+gbfit.fit(X=X, y=y)
+
+#%% explore GB fit
+accuracy = gbfit.score(Xt, yt)
+predict = gbfit.predict(Xt)
 
 #%% 
+# Model feature importances ranking
+importances = gbfit.feature_importances_
+indices = np.argsort(importances)[::-1]
+
+print('Feature Importances')
+
+for f in range(X.shape[1]):
+    print("feature %s (%f)" % (list(X)[f], importances[indices[f]]))
 
 
+feat_imp = pd.DataFrame({'Feature':list(X),
+                         'Gini Importance':importances[indices]})
 
+#%%
+#-------------------------------------------------------------------
+#-------------------------------------------------------------------
 
+#       =========  #PCA  --- Principal Components ========== -------
 
-#       =========  #PCA  --- Principal Components ==========
-
+#-------------------------------------------------------------------
 #-------------------------------------------------------------------
 
 #Create a different normalized dataframe for PCA
@@ -242,40 +168,11 @@ coef = pca.transform(i)
 pcp = pd.DataFrame(coef, columns = ['PC-1','PC-2','PC-3','PC-4','PC-5'],
                            index = trPCA.drop('SalePrice', axis=1).columns)
 
-#%% Visualize Principal components
-
 pcp['max'] = pcp.max(axis=1)
-pcp['avg'] = pcp.mean(axis=1)
-pcp['sum'] = pcp.sum(axis=1)
+pcp['sum'] = pcp.drop('max',axis=1).abs().sum(axis=1)
+
 
 pcp = pcp.sort_values(by=['max'], ascending=False)
-
-plt.rcParams['figure.figsize']=(10,20)
-sb.heatmap(pcp[['max','sum','avg']], annot=True, annot_kws={"size": 12})
-
-#%% --Alternative PCA
-
-#       =========  #PCA 2 --- Principal Components ==========
-
-#-------------------------------------------------------------------
-
-#Create a different normalized dataframe for PCA
-trPCA = (trNum - trNum.mean()) / trNum.std()
-
-i = np.identity(trPCA.drop('SalePrice', axis=1).shape[1])
-
-pca = PCA(n_components=5, random_state=1010)
-pca.fit_transform(trPCA.drop('SalePrice', axis=1).values)
-
-coef = pca.transform(i)
-pcp = pd.DataFrame(coef, columns = ['PC-1','PC-2','PC-3','PC-4','PC-5'],
-                           index = trPCA.drop('SalePrice', axis=1).columns)
-
-pcp['max'] = pcp.max(axis=1)
-pcp['avg'] = pcp.mean(axis=1)
-
-
-pcp = pcp.sort_values(by=['avg'], ascending=False)
 
 plt.rcParams['figure.figsize']=(10,20)
 sb.heatmap(pcp, annot=True, annot_kws={"size": 12})
@@ -283,15 +180,22 @@ sb.heatmap(pcp, annot=True, annot_kws={"size": 12})
 #%% Combine PCA results and Pearson Correlation results ---<><><><><><><><><><>
 
 # --------------------- <><><><>< * * * * * * * * * * * * * * * * * ><><><><>
-
+corrdf = trNum.corr()
+ycorr = corrdf[['SalePrice']]
 ycorr = ycorr.rename(columns={'SalePrice':'YCorrelation'})
 fsel = pd.concat([ycorr.drop('SalePrice',axis=0), pcp], axis=1)
+fsel['Feature'] = fsel.index
+
+comb = pd.merge(feat_imp,fsel,on='Feature')
+comb.index = comb.Feature
+comb = comb.drop('Feature',axis=1)
+sb.heatmap(comb, annot=True, annot_kws={"size": 12})
 
 #%%
 # -----  -----  save top components
 
 #conditional top
-top = list(pcp[(pcp['max'] > pcp['max'].mean())].index)
+#top = list(pcp[(pcp['max'] > pcp['max'].mean())].index)
 
 #sorted list
 pclist = list(pcp.index)
@@ -303,8 +207,8 @@ pclist = list(pcp.index)
 #<><><><>
 #Set up training and test sets
 
-pcdata = pd.concat([trNum[pclist[0:len(pclist)]],trNum['SalePrice']],axis=1)
-nmdata = pd.concat([trNorm[pclist[0:len(pclist)]],trNorm['SalePrice']],axis=1)
+pcdata = pd.concat([trNum[pclist[0:65]],trNum['SalePrice']],axis=1)
+nmdata = pd.concat([trNorm[pclist[0:65]],trNorm['SalePrice']],axis=1)
 #nmonly = pd.concat([trNum_norm[list(numht.drop('SalePrice',axis=1))],trNum_norm['SalePrice']],axis=1)
 
 train, test = train_test_split(pcdata, test_size = .30, random_state = 1010)
@@ -391,6 +295,22 @@ plt.show()
 #_________________________________________________________________________________>  
 #_________________________________________________________________________________>    
 #########
+
+#%%
+#          ___ Combine All Feature Ranking data ___
+
+# --------------------- <><><><>< * * * * * * * * * * * * * * * * * ><><><><>
+corrdf = trNum.corr()
+ycorr = corrdf[['SalePrice']]
+ycorr = ycorr.rename(columns={'SalePrice':'YCorrelation'})
+fsel = pd.concat([ycorr.drop('SalePrice',axis=0), pcp], axis=1)
+fsel['Feature'] = fsel.index
+
+comb = pd.merge(feat_imp,fsel,on='Feature')
+comb.index = comb.Feature
+comb = comb.drop('Feature',axis=1)
+sb.heatmap(comb, annot=True, annot_kws={"size": 12})
+
 
 #%%#   ------- Linear Models --------
 reg = linear_model.SGDRegressor(alpha=1)

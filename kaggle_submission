@@ -1,0 +1,88 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Apr  1 14:11:49 2017
+
+@author: NNK
+Kaggle submission results
+"""
+import pandas as pd
+import numpy as np
+from sklearn import linear_model
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+import plotly
+import cufflinks as cf
+import plotly.plotly as py
+import plotly.graph_objs as go
+import seaborn as sb
+import os
+
+np.random.seed(10)
+
+
+htest = pd.read_csv('test.csv')
+
+htest = htest.drop('Id', axis=1)
+
+###
+##   Note: change "YearBuilt", "YearSold", "YearRM"
+#       to "Years Since" vars..
+##
+###
+htest['YrsOld'] = 2017 - htest['YearBuilt']
+htest['YrsRM'] = 2017 - htest['YearRemodAdd']
+htest['YrsSS'] = 2017 - htest['YrSold']
+
+htest = htest.drop(['YearBuilt','YearRemodAdd','YrSold'],axis=1)
+
+htest['TotalSF'] = htest.GrLivArea + htest.TotalBsmtSF
+
+
+# ------------------- DATA CLEANING ------------------------- #
+
+#...............................................................
+# Convert dataframe to all numeric for training models
+#
+#-------------------------
+#htest = htest.dropna(axis=1)
+# Fill NAs with 0 first step
+htest = htest.fillna(value=0)
+#sd_cols = pd.get_dummies(htest.SaleCondition, prefix='SaleCon')
+#bt_cols = pd.get_dummies(htest.BldgType, prefix='BldgType')
+#style_cols = pd.get_dummies(htest.HouseStyle, prefix='HouseStyle')
+#ms_cols = pd.get_dummies(htest.Exterior1st, prefix='Exterior1st')
+#nb_cols = pd.get_dummies(htest.GarageType, prefix='GarageType')
+#htest = pd.concat([htest,sd_cols, bt_cols, style_cols], axis=1)
+
+# Seperate numerical and non-numerical columns into dataframes
+numht = htest.select_dtypes(include = ['float64','int64'])
+nonht = htest.select_dtypes(exclude = ['float64','int64'])
+
+# -- Get Category Codes --
+#Create empty df and pass all columns from non-numeric df 
+# converted to categorical
+non2 = pd.DataFrame()
+for column in nonht:
+    non2[column] = pd.Categorical(nonht[column])
+
+#Create another empty df and pass all columns from categorical df
+# converted to codes    
+nonC = pd.DataFrame()
+for column in non2:
+    nonC[column] = non2[column].cat.codes
+    
+#Combine the native numerical and newly converted dataframes
+trNum = pd.concat([numht,nonC], axis=1)
+
+#Create normalized dataframe with normalized outcome var
+normdf = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
+
+htest = pd.read_csv('test.csv')
+kaggle = gbfit.predict(trNum)
+kag_submission = pd.DataFrame({'Id':htest.Id,
+                               'SalePrice':kaggle})
+
+kag_submission.to_csv('kuttyman_housepred.csv', index=False)

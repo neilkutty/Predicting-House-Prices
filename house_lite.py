@@ -52,13 +52,12 @@ htrain['TotalSF'] = htrain.GrLivArea + htrain.TotalBsmtSF
 #htrain = htrain.dropna(axis=1)
 # Fill NAs with 0 first step
 htrain = htrain.fillna(value=0)
-sd_cols = pd.get_dummies(htrain.SaleCondition, prefix='SaleCon')
-bt_cols = pd.get_dummies(htrain.BldgType, prefix='BldgType')
-style_cols = pd.get_dummies(htrain.HouseStyle, prefix='HouseStyle')
-ms_cols = pd.get_dummies(htrain.Exterior1st, prefix='Exterior1st')
-nb_cols = pd.get_dummies(htrain.GarageType, prefix='GarageType')
-htrain = pd.concat([htrain,sd_cols, bt_cols, style_cols,
-                    ms_cols, nb_cols], axis=1)
+#sd_cols = pd.get_dummies(htrain.SaleCondition, prefix='SaleCon')
+#bt_cols = pd.get_dummies(htrain.BldgType, prefix='BldgType')
+#style_cols = pd.get_dummies(htrain.HouseStyle, prefix='HouseStyle')
+#ms_cols = pd.get_dummies(htrain.Exterior1st, prefix='Exterior1st')
+#nb_cols = pd.get_dummies(htrain.GarageType, prefix='GarageType')
+#htrain = pd.concat([htrain,sd_cols, bt_cols, style_cols], axis=1)
 
 # Seperate numerical and non-numerical columns into dataframes
 numht = htrain.select_dtypes(include = ['float64','int64'])
@@ -80,11 +79,6 @@ for column in non2:
 #Combine the native numerical and newly converted dataframes
 trNum = pd.concat([numht,nonC], axis=1)
 
-#Create normalized dataframe with unadjusted SalePrice
-temp = numht.drop('SalePrice',axis=1)
-trnorm = (temp - temp.mean()) / (temp.max() - temp.min())
-trNum_norm = pd.concat([trnorm,nonC,numht['SalePrice']], axis=1)
-
 #Create normalized dataframe with normalized outcome var
 normdf = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
 
@@ -100,15 +94,7 @@ X = train.drop('SalePrice', axis=1)
 yt = test.SalePrice
 Xt = test.drop('SalePrice', axis=1)
 
-# Create normalized train and test sets
 
-train, test = train_test_split(trNum_norm, test_size = .30, random_state = 1010)
-
-ynorm = train.SalePrice
-Xnorm = train.drop('SalePrice', axis=1)
-
-ytnorm = test.SalePrice
-Xtnorm = test.drop('SalePrice', axis=1)
 
 #%%
 #               ## ==== Model Training ==== ##
