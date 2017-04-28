@@ -125,20 +125,18 @@ plot_clusters(trNorm.drop('SalePrice',axis=1).as_matrix(), cluster.KMeans, (), {
 #|---||---||---||---||---||---||---||---||---||---||---||---||---||---||---|
 
 def fit_model(model, X, y, Xtest, ytest):
-    fit = model.fit(X=predictors,y=outcome)
+    fit = model.fit(X, y)
     accuracy = fit.score(Xtest, ytest)
     predict = fit.predict(Xtest)
     return fit, accuracy, predict
 
+#%%
 
-
-
-
-
-
+models = [GradientBoostingRegressor(n_estimators=250,max_depth=2,loss='ls',random_state=1010),
+          RandomForestRegressor(n_estimators=250)]
 
 #%%
-#%%
+sup = fit_model(models[1], X,y,Xt,yt)
 #%%
 #<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
 #<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
