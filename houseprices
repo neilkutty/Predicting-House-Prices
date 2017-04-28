@@ -3,6 +3,8 @@
 """
 Created on Sat Apr  1 14:11:49 2017
 
+# Implement unsupervised learning method!
+
 @author: NNK
 """
 
@@ -31,17 +33,18 @@ np.random.seed(10)
  
 os.chdir("/Users/NNK/Documents/project/kaggle/houseprices")
 
+static = pd.read_csv('train.csv')
 htrain = pd.read_csv('train.csv')
 htest = pd.read_csv('test.csv')
 
 htrain = htrain.drop('Id', axis=1)
-
+htrain = htrain[htrain.GrLivArea < 4000]
 
 # ###
 ##   Note: change "YearBuilt", "YearSold", "YearRM"
 #       to "Years Since" vars..
-##
-###
+##   Drop original year variables
+###  Create a TotalSF variable
 htrain['YrsOld'] = 2017 - htrain['YearBuilt']
 htrain['YrsRM'] = 2017 - htrain['YearRemodAdd']
 htrain['YrsSS'] = 2017 - htrain['YrSold']
@@ -55,127 +58,6 @@ htrain['TotalSF'] = htrain.GrLivArea + htrain.TotalBsmtSF
 
 #...............................................................
 
-#htrain = htrain.dropna(axis=1)
-# Fill NAs with 0 first step
-htrain = htrain.fillna({
-    'Alley' : 'NoAlley',
-    'MasVnrType': 'None',
-    'FireplaceQu': 'NoFireplace',
-    'GarageType': 'NoGarage',
-    'GarageFinish': 'NoGarage',
-    'GarageQual': 'NoGarage',
-    'GarageCond': 'NoGarage',
-    'BsmtFullBath': 0,
-    'BsmtHalfBath': 0,
-    'BsmtQual' : 'NoBsmt',
-    'BsmtCond' : 'NoBsmt',
-    'BsmtExposure' : 'NoBsmt',
-    'BsmtFinType1' : 'NoBsmt',
-    'BsmtFinType2' : 'NoBsmt',
-    'KitchenQual' : 'TA',
-    'MSZoning' : 'RL',
-    'Utilities' : 'AllPub',
-    'Exterior1st' : 'VinylSd',
-    'Exterior2nd'   : 'VinylSd',
-    'Functional' : 'Typ',
-    'PoolQC' : 'NoPool',
-    'Fence' : 'NoFence',
-    'MiscFeature' : 'None',
-    'Electrical' : 'SBrkr'
-     
-})
-htrain.loc[htrain.SaleCondition.isnull(), 'SaleCondition'] = 'Normal'
-htrain.loc[htrain.SaleCondition.isnull(), 'SaleType'] = 'WD'
-htrain.loc[htrain.MasVnrType == 'None', 'MasVnrArea'] = 0
-htrain.loc[htrain.BsmtFinType1=='NoBsmt', 'BsmtFinSF1'] = 0
-htrain.loc[htrain.BsmtFinType2=='NoBsmt', 'BsmtFinSF2'] = 0
-htrain.loc[htrain.BsmtFinSF1.isnull(), 'BsmtFinSF1'] = htrain.BsmtFinSF1.median()
-htrain.loc[htrain.BsmtQual=='NoBsmt', 'BsmtUnfSF'] = 0
-htrain.loc[htrain.BsmtUnfSF.isnull(), 'BsmtUnfSF'] = htrain.BsmtUnfSF.median()
-htrain.loc[htrain.BsmtQual=='NoBsmt', 'TotalBsmtSF'] = 0
-
-# only one is null and it has type Detchd
-htrain.loc[htrain['GarageArea'].isnull(), 'GarageArea'] = htrain.loc[htrain['GarageType']=='Detchd', 'GarageArea'].mean()
-htrain.loc[htrain['GarageCars'].isnull(), 'GarageCars'] = htrain.loc[htrain['GarageType']=='Detchd', 'GarageCars'].median()
-
-
-# where we have order we will use numeric
-htrain = htrain.replace({'Utilities': {'AllPub': 1, 'NoSeWa': 0, 'NoSewr': 0, 'ELO': 0},
-                             'Street': {'Pave': 1, 'Grvl': 0 },
-                             'FireplaceQu': {'Ex': 5, 
-                                            'Gd': 4, 
-                                            'TA': 3, 
-                                            'Fa': 2,
-                                            'Po': 1,
-                                            'NoFireplace': 0 
-                                            },
-                             'Fence': {'GdPrv': 2, 
-                                       'GdWo': 2, 
-                                       'MnPrv': 1, 
-                                       'MnWw': 1,
-                                       'NoFence': 0},
-                             'ExterQual': {'Ex': 5, 
-                                            'Gd': 4, 
-                                            'TA': 3, 
-                                            'Fa': 2,
-                                            'Po': 1
-                                            },
-                             'ExterCond': {'Ex': 5, 
-                                            'Gd': 4, 
-                                            'TA': 3, 
-                                            'Fa': 2,
-                                            'Po': 1
-                                            },
-                             'BsmtQual': {'Ex': 5, 
-                                            'Gd': 4, 
-                                            'TA': 3, 
-                                            'Fa': 2,
-                                            'Po': 1,
-                                            'NoBsmt': 0},
-                             'BsmtExposure': {'Gd': 3, 
-                                            'Av': 2, 
-                                            'Mn': 1,
-                                            'No': 0,
-                                            'NoBsmt': 0},
-                             'BsmtCond': {'Ex': 5, 
-                                            'Gd': 4, 
-                                            'TA': 3, 
-                                            'Fa': 2,
-                                            'Po': 1,
-                                            'NoBsmt': 0},
-                             'GarageQual': {'Ex': 5, 
-                                            'Gd': 4, 
-                                            'TA': 3, 
-                                            'Fa': 2,
-                                            'Po': 1,
-                                            'NoGarage': 0},
-                             'GarageCond': {'Ex': 5, 
-                                            'Gd': 4, 
-                                            'TA': 3, 
-                                            'Fa': 2,
-                                            'Po': 1,
-                                            'NoGarage': 0},
-                             'KitchenQual': {'Ex': 5, 
-                                            'Gd': 4, 
-                                            'TA': 3, 
-                                            'Fa': 2,
-                                            'Po': 1},
-                             'Functional': {'Typ': 0,
-                                            'Min1': 1,
-                                            'Min2': 1,
-                                            'Mod': 2,
-                                            'Maj1': 3,
-                                            'Maj2': 4,
-                                            'Sev': 5,
-                                            'Sal': 6}                             
-                            })
-
-
-htrain = htrain.replace({'CentralAir': {'Y': 1, 
-                                            'N': 0}})
-htrain = htrain.replace({'PavedDrive': {'Y': 1, 
-                                            'P': 0,
-                                            'N': 0}})
 
 htrain = htrain.fillna(value=0)
 #sd_cols = pd.get_dummies(htrain.MSZoning, prefix='MSZoning')
@@ -186,7 +68,8 @@ htrain = htrain.fillna(value=0)
 #htrain = pd.concat([htrain,sd_cols],axis=1)
 
 #htrain = pd.concat([htrain,sd_cols,bt_cols,style_cols,ms_cols,nb_cols], axis=1)
-
+def cleandata(data):
+    print "hi"
 
 # Convert dataframe to all numeric for training models
 #
@@ -195,47 +78,88 @@ htrain = htrain.fillna(value=0)
 #1.) Seperate numerical and non-numerical columns into dataframes
 numht = htrain.select_dtypes(include = ['float64','int64'])
 nonht = htrain.select_dtypes(exclude = ['float64','int64'])
-
 # -- Get Category Codes --
 #2.) Create empty df and pass all columns from non-numeric df 
 # converted to categorical
 non2 = pd.DataFrame()
 for column in nonht:
     non2[column] = pd.Categorical(nonht[column])
-
 #3.) Create another empty df and pass all columns from categorical df
 # converted to codes    
 nonC = pd.DataFrame()
 for column in non2:
     nonC[column] = non2[column].cat.codes
-    
 #Combine the native numerical and newly converted dataframes
 trNum = pd.concat([numht,nonC], axis=1)
 #Create normalized dataframe if needed
 trNorm = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
 
-
 train, test = train_test_split(trNum, test_size = .30, random_state = 1010)
-
 # Train outcome and predictors 
 y = train.SalePrice
 X = train.drop('SalePrice', axis=1)
-
 # Test outcome and predictors
 yt = test.SalePrice
 Xt = test.drop('SalePrice', axis=1)
 
 # Create normalized train and test sets
-
 train, test = train_test_split(trNorm, test_size = .30, random_state = 1010)
-
 ynorm = train.SalePrice
 Xnorm = train.drop('SalePrice', axis=1)
-
+#Normalized test set
 ytnorm = test.SalePrice
 Xtnorm = test.drop('SalePrice', axis=1)
 
+#%% 
+#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>
+#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
+#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
+#
+#%%
 
+# -- Re-address NaN values
+
+trNorm = trNorm.fillna(0)
+
+#%%
+#...................................................................................
+#
+#                                <Spectral Clustering >
+#...................................................................................
+
+import sklearn.cluster as cluster
+import time
+sb.set_context('poster')
+sb.set_color_codes()
+plot_kwds = {'alpha' : 0.25, 's' : 80, 'linewidths':0}
+
+
+def plot_clusters(data, algorithm, args, kwds):
+    start_time = time.time()
+    labels = algorithm(*args, **kwds).fit_predict(data)
+    end_time = time.time()
+    palette = sb.color_palette('deep', np.unique(labels).max() + 1)
+    colors = [palette[x] if x >= 0 else (0.0, 0.0, 0.0) for x in labels]
+    plt.scatter(data.T[0], data.T[1], c=colors, **plot_kwds)
+    frame = plt.gca()
+    frame.axes.get_xaxis().set_visible(True)
+    frame.axes.get_yaxis().set_visible(True)
+    plt.title('Clusters found by {}'.format(str(algorithm.__name__)), fontsize=24)
+    plt.text(-0.5, 0.7, 'Clustering took {:.2f} s'.format(end_time - start_time), fontsize=14)
+
+
+#%%
+plot_clusters(trNorm.drop('SalePrice',axis=1).as_matrix(), cluster.KMeans, (), {'n_clusters':6})
+#...................................................................................
+#...................................................................................
+
+
+#%%
+
+
+#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
+#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
+#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
 
 #%%
 #               ## ==== Model Training ==== ##
@@ -285,6 +209,9 @@ plt.show()
 # ----------- Exploration --------------------
 #..............................................
 
+static.isnull().sum().sum()
+static.notnull().sum().sum()
+#%%
 
 df = htrain.sort_index(axis=1,ascending=True)
 plt.rcParams['figure.figsize']=(8,14)
@@ -323,7 +250,6 @@ pcp = pd.DataFrame(coef, columns = ['PC-1','PC-2','PC-3','PC-4','PC-5'],
 
 pcp['max'] = pcp.max(axis=1)
 pcp['sum'] = pcp.drop('max',axis=1).abs().sum(axis=1)
-
 
 pcp = pcp.sort_values(by=['max'], ascending=False)
 
@@ -369,23 +295,18 @@ train, test = train_test_split(pcdata, test_size = .30, random_state = 1010)
 # Train outcome and predictors 
 y = train.SalePrice
 X = train.drop('SalePrice', axis=1)
-
 # Test outcome and predictors
 yt = test.SalePrice
 Xt = test.drop('SalePrice', axis=1)
 
 # Create normalized train and test sets
-
 train, test = train_test_split(nmdata, test_size = .30, random_state = 1010)
-
+#Norm train
 ynorm = train.SalePrice
 Xnorm = train.drop('SalePrice', axis=1)
-
+#Norm test
 ytnorm = test.SalePrice
 Xtnorm = test.drop('SalePrice', axis=1)
-
-
-
 
 #%%
 #               ## ==== Model Training ==== ##
@@ -445,6 +366,7 @@ plt.show()
 
 # End Gradient Boosting .. 
 #_________________________________________________________________________________>  
+htrain = htrain[htrain.GrLivArea > 4000]
 #_________________________________________________________________________________>  
 #_________________________________________________________________________________>    
 #########
@@ -466,9 +388,11 @@ sb.heatmap(comb, annot=True, annot_kws={"size": 12})
 
 
 #%%#   ------- Linear Models --------
-reg = linear_model.SGDRegressor(alpha=1)
-reg.fit(Xnorm,ynorm)
-accuracy = reg.score(Xtnorm,ytnorm)
+reg = linear_model.Lasso(alpha=1.4, max_iter=2000)
+reg.fit(X,y)
+accuracy = reg.score(Xt,yt)
+
+
 ########
 #######
 #%%
