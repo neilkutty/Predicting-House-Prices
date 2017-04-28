@@ -9,6 +9,8 @@ Created on Sat Apr  1 14:11:49 2017
 """
 
 #%%
+import datetime
+now = datetime.datetime.now()
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -37,63 +39,27 @@ static = pd.read_csv('train.csv')
 htrain = pd.read_csv('train.csv')
 htest = pd.read_csv('test.csv')
 
-htrain = htrain.drop('Id', axis=1)
-htrain = htrain[htrain.GrLivArea < 4000]
-
-# ###
-##   Note: change "YearBuilt", "YearSold", "YearRM"
-#       to "Years Since" vars..
-##   Drop original year variables
-###  Create a TotalSF variable
-htrain['YrsOld'] = 2017 - htrain['YearBuilt']
-htrain['YrsRM'] = 2017 - htrain['YearRemodAdd']
-htrain['YrsSS'] = 2017 - htrain['YrSold']
-
-htrain = htrain.drop(['YearBuilt','YearRemodAdd','YrSold'],axis=1)
-
-htrain['TotalSF'] = htrain.GrLivArea + htrain.TotalBsmtSF
-
-
-# ------------------- DATA CLEANING ------------------------- #
-
-#...............................................................
-
-
-htrain = htrain.fillna(value=0)
-#sd_cols = pd.get_dummies(htrain.MSZoning, prefix='MSZoning')
-#bt_cols = pd.get_dummies(htrain.BldgType, prefix='BldgType')
-#style_cols = pd.get_dummies(htrain.HouseStyle, prefix='HouseStyle')
-#ms_cols = pd.get_dummies(htrain.Exterior1st, prefix='Exterior1st')
-#nb_cols = pd.get_dummies(htrain.GarageType, prefix='GarageType')
-#htrain = pd.concat([htrain,sd_cols],axis=1)
-
-#htrain = pd.concat([htrain,sd_cols,bt_cols,style_cols,ms_cols,nb_cols], axis=1)
-def cleandata(data):
-    print "hi"
-
-# Convert dataframe to all numeric for training models
-#
-#-------------------------
-
-#1.) Seperate numerical and non-numerical columns into dataframes
-numht = htrain.select_dtypes(include = ['float64','int64'])
-nonht = htrain.select_dtypes(exclude = ['float64','int64'])
-# -- Get Category Codes --
-#2.) Create empty df and pass all columns from non-numeric df 
-# converted to categorical
-non2 = pd.DataFrame()
-for column in nonht:
-    non2[column] = pd.Categorical(nonht[column])
-#3.) Create another empty df and pass all columns from categorical df
-# converted to codes    
-nonC = pd.DataFrame()
-for column in non2:
-    nonC[column] = non2[column].cat.codes
-#Combine the native numerical and newly converted dataframes
-trNum = pd.concat([numht,nonC], axis=1)
-#Create normalized dataframe if needed
+#%%  Functionalize cleaning
+def convert_data(data):
+    data = data.fillna(0)
+    data = data.drop('Id',axis=1)
+    data['YrsOld'] = now.year - data['YearBuilt']
+    data['YrsRM'] = now.year - data['YearRemodAdd']
+    data['YrsSS'] = now.year - data['YrSold']
+    data = data.drop(['YearBuilt','YearRemodAdd','YrSold'],axis=1)
+    num = data.select_dtypes(include = ['float64','int64'])
+    non = data.select_dtypes(exclude = ['float64','int64'])
+    j = pd.DataFrame()
+    k = pd.DataFrame()
+    for column in non:
+        j[column] = pd.Categorical(non[column])
+        k[column] = j[column].cat.codes
+    converted_data = pd.concat([num,k], axis=1)
+    converted_data = converted_data.fillna(0)
+    return converted_data
+#%%
+trNum = convert_data(htrain)
 trNorm = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
-
 train, test = train_test_split(trNum, test_size = .30, random_state = 1010)
 # Train outcome and predictors 
 y = train.SalePrice
@@ -110,16 +76,7 @@ Xnorm = train.drop('SalePrice', axis=1)
 ytnorm = test.SalePrice
 Xtnorm = test.drop('SalePrice', axis=1)
 
-#%% 
-#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>
-#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
-#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
-#
-#%%
 
-# -- Re-address NaN values
-
-trNorm = trNorm.fillna(0)
 
 #%%
 #...................................................................................
@@ -176,7 +133,7 @@ rf_accuracy = rf_fit.score(Xtnorm, ytnorm)
 
 #-----------------------------------------------------------------
 #Set model parameters
-gbfit = GradientBoostingRegressor(n_estimators=5000, max_depth=5, loss='ls', random_state=1010)
+gbfit = GradientBoostingRegressor(n_estimators=250, max_depth=2, loss='ls', random_state=1010)
 
 #Fit model
 gbfit.fit(X=X, y=y)
