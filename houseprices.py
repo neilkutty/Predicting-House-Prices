@@ -84,37 +84,32 @@ Xtnorm = test.drop('SalePrice', axis=1)
 #                                <Spectral Clustering >
 #...................................................................................
 
-import sklearn.cluster as cluster
-import time
-sb.set_context('poster')
-sb.set_color_codes()
-plot_kwds = {'alpha' : 0.25, 's' : 80, 'linewidths':0}
-
-
-def plot_clusters(data, algorithm, args, kwds):
-    start_time = time.time()
-    labels = algorithm(*args, **kwds).fit_predict(data)
-    end_time = time.time()
-    palette = sb.color_palette('deep', np.unique(labels).max() + 1)
-    colors = [palette[x] if x >= 0 else (0.0, 0.0, 0.0) for x in labels]
-    plt.scatter(data.T[0], data.T[1], c=colors, **plot_kwds)
-    frame = plt.gca()
-    frame.axes.get_xaxis().set_visible(True)
-    frame.axes.get_yaxis().set_visible(True)
-    plt.title('Clusters found by {}'.format(str(algorithm.__name__)), fontsize=24)
-    plt.text(-0.5, 0.7, 'Clustering took {:.2f} s'.format(end_time - start_time), fontsize=14)
-
-
-#%%
-plot_clusters(trNorm.drop('SalePrice',axis=1).as_matrix(), cluster.KMeans, (), {'n_clusters':6})
-#...................................................................................
-#...................................................................................
-
-
 #%%
 
+from sklearn.cluster import SpectralClustering
+
+spectral = cluster.SpectralClustering(n_clusters=4,
+                                      eigen_solver='arpack',
+                                      affinity="nearest_neighbors")
+
+spectral.fit(np.array(trNum.drop('SalePrice',axis=1)))
+
+spec_labels = spectral.labels_.astype(np.int)
+
+cData = pd.concat([trNum,pd.Series(spec_labels, name="Spectral")],axis=1)
+
+#%%
+plt.rcParams['figure.figsize']=(8,9)
+sb.lmplot(x='GrLivArea', y='SalePrice', data=cData, fit_reg=False, hue='Spectral')
 
 #<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>  
+
+
+
+#%%
+
+
+
 
 
 #%%  
@@ -137,6 +132,7 @@ models = [GradientBoostingRegressor(n_estimators=250,max_depth=2,loss='ls',rando
 
 #%%
 sup = fit_model(models[1], X,y,Xt,yt)
+
 #%%
 #<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
 #<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
