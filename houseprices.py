@@ -14,6 +14,7 @@ now = datetime.datetime.now()
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 import seaborn as sb
 import plotly
 import cufflinks as cf
@@ -59,6 +60,7 @@ def convert_data(data):
     return converted_data
 #%%
 trNum = convert_data(htrain)
+
 trNorm = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
 train, test = train_test_split(trNum, test_size = .30, random_state = 1010)
 # Train outcome and predictors 
@@ -88,8 +90,8 @@ Xtnorm = test.drop('SalePrice', axis=1)
 
 from sklearn.cluster import SpectralClustering
 
-spectral = cluster.SpectralClustering(n_clusters=4,
-                                      eigen_solver='arpack',
+spectral = SpectralClustering(n_clusters=6,
+                                      #eigen_solver='arpack',
                                       affinity="nearest_neighbors")
 
 spectral.fit(np.array(trNum.drop('SalePrice',axis=1)))
@@ -99,14 +101,33 @@ spec_labels = spectral.labels_.astype(np.int)
 cData = pd.concat([trNum,pd.Series(spec_labels, name="Spectral")],axis=1)
 
 #%%
-plt.rcParams['figure.figsize']=(8,9)
-sb.lmplot(x='GrLivArea', y='SalePrice', data=cData, fit_reg=False, hue='Spectral')
+#sb.set(rc={"figure.figsize": (16, 16)})
+sb.lmplot("GrLivArea","SalePrice",cData,hue="Spectral",
+          fit_reg=False,size=10,aspect=1,scatter_kws={"s": 55, 'alpha':0.30})
+plt.legend()
 
-#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>  
-
+# Combine lm and reg plots
+#
+#g = sb.lmplot(x="GrLivArea", y="SalePrice", hue="Spectral",
+#              data=cData, fit_reg=False,size=10, aspect=1)
+#
+#sb.regplot(x="GrLivArea", y="SalePrice", data=cData, scatter=False, fit_reg=False,ax=g.axes[0, 0])
 
 
 #%%
+
+#cm = sb.light_palette("purple",as_cmap=True, input="muted")
+#sb.set(rc={"figure.figsize": (6, 6)})
+sb.set_context('paper')
+plot_kwds = {'alpha' : 0.25, 's' : 80, 'linewidths':0}
+
+flatui = ["#9b59b6", "#3498db", "#95a5a6", "#e74c3c", "#34495e", "#2ecc71"]
+my_cmap = ListedColormap(sb.color_palette(flatui).as_hex())
+
+plt.rcParams['figure.figsize']=(10,8)
+plt.scatter(cData.GrLivArea, y=cData.SalePrice, c=cData.Spectral, cmap=my_cmap, **plot_kwds)
+plt.colorbar()
+#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>  
 
 
 
