@@ -82,77 +82,6 @@ Xtnorm = test.drop('SalePrice', axis=1)
 
 
 
-#%%
-#...................................................................................
-#
-#                                <Spectral Clustering >
-#...................................................................................
-
-#%%
-from sklearn.cluster import SpectralClustering
-
-def spectralFeatureAppend(clusters, data):
-    sc = SpectralClustering(n_clusters=clusters,
-                            eigen_solver='arpack',
-                            affinity="rbf")
-    sc.fit(np.array(data.drop('SalePrice',axis=1)))
-    labels=sc.labels_.astype(np.int)
-    return labels
-#%%
-spec6_labels = spectralFeatureAppend(6, trNorm)
-spec10_labels = spectralFeatureAppend(10, trNorm)
-spec12_labels = spectralFeatureAppend(12, trNorm)
-spec14_labels = spectralFeatureAppend(14, trNorm)
-spec18_labels = spectralFeatureAppend(18, trNorm)
-spec24_labels = spectralFeatureAppend(24, trNorm)
-
-
-cData = pd.concat([trNum,
-                   pd.Series(spec6_labels, name="Spectral_6"),
-                   pd.Series(spec10_labels, name="Spectral_10"),
-                   pd.Series(spec12_labels, name="Spectral_12"),
-                   pd.Series(spec14_labels, name="Spectral_14"),
-                   pd.Series(spec18_labels, name="Spectral_18"),
-                   pd.Series(spec24_labels, name="Spectral_24")],axis=1)
-
-#%%
-#sb.set(rc={"figure.figsize": (16, 16)})
-sb.lmplot("GrLivArea","SalePrice",cData,hue="Spectral_24",
-          fit_reg=False,size=10,aspect=1,scatter_kws={"s": 55, 'alpha':0.30})
-plt.legend()
-
-# Combine lm and reg plots
-#
-#g = sb.lmplot(x="GrLivArea", y="SalePrice", hue="Spectral",
-#              data=cData, fit_reg=False,size=10, aspect=1)
-#
-#sb.regplot(x="GrLivArea", y="SalePrice", data=cData, scatter=False, fit_reg=False,ax=g.axes[0, 0])
-
-
-#%%
-
-#cm = sb.light_palette("purple",as_cmap=True, input="muted")
-#sb.set(rc={"figure.figsize": (6, 6)})
-sb.set_context('paper')
-plot_kwds = {'alpha' : 0.25, 's' : 80, 'linewidths':0}
-
-flatui = ["#9b59b6", "#3498db", "#95a5a6", "#e74c3c", "#34495e", "#2ecc71"]
-my_cmap = ListedColormap(sb.color_palette(flatui).as_hex())
-
-plt.rcParams['figure.figsize']=(10,8)
-plt.scatter(cData.GrLivArea, y=cData.SalePrice, c=cData.Spectral, cmap=my_cmap, **plot_kwds)
-plt.colorbar()
-#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>  
-
-#%%  Create new arrays with spectral clustering results
-
-train, test = train_test_split(cData, test_size = .30, random_state = 1010)
-# Train outcome and predictors 
-ySpec = train.SalePrice
-XSpec = train.drop('SalePrice', axis=1)
-# Test outcome and predictors
-ytSpec = test.SalePrice
-XtSpec = test.drop('SalePrice', axis=1)
 
 
 
@@ -198,11 +127,17 @@ gbfit.fit(X=X, y=y)
 accuracy = gbfit.score(Xt, yt)
 predict = gbfit.predict(Xt)
 
+print('Gradient Boosting Accuracy %s' % '{0:.2%}'.format(accuracy))    
+# Cross_Validation
+v = cross_val_score(gbfit, X, y, cv=10)
+for i in range(10):
+    print('Cross Validation Score: %s'%'{0:.2%}'.format(v[i,]))
+
 #%% 
 # Model feature importances ranking
-importances = gbfit.feature_importances_
-indices = np.argsort(importances)[::-1]
 
+indices = np.argsort(importances)[::-1]
+importances = gbfit.feature_importances_
 print('Feature Importances')
 
 for f in range(X.shape[1]):
@@ -227,17 +162,72 @@ static.notnull().sum().sum()
 #%%
 
 df = htrain.sort_index(axis=1,ascending=True)
-plt.rcParams['figure.figsize']=(8,14)
+plt.rcParams['figure.figsize']=(10,7)
 #...............................................................
 #     ----------- Correlation Plot -----------
 #...............................................................
  
 corrdf = trNum.corr()
 ycorr = corrdf[['SalePrice']]
-ycorr = ycorr.sort_index(axis=0,ascending=False)
-#ycorr = ycorr.sort_values(by=['SalePrice'])
-ycorr.drop(['SalePrice']).plot(kind='barh')
+#ycorr = ycorr.sort_index(axis=0,ascending=False)
+ycorr = ycorr.sort_values(by=['SalePrice'])
+top_ycorr = ycorr[ycorr.SalePrice.abs()>.2]
+top_ycorr.drop(['SalePrice']).plot(kind='barh')
 
+
+
+
+
+#%%
+#...................................................................................
+#
+#                                <Spectral Clustering >
+#...................................................................................
+
+#%%
+from sklearn.cluster import SpectralClustering
+
+def spectralFeatureAppend(clusters, data):
+    sc = SpectralClustering(n_clusters=clusters,
+                            eigen_solver='arpack',
+                            affinity="rbf")
+    sc.fit(np.array(data.drop('SalePrice',axis=1)))
+    labels=sc.labels_.astype(np.int)
+    return labels
+#%%
+spec6_labels = spectralFeatureAppend(6, trNorm)
+spec10_labels = spectralFeatureAppend(10, trNorm)
+spec12_labels = spectralFeatureAppend(12, trNorm)
+spec14_labels = spectralFeatureAppend(14, trNorm)
+spec18_labels = spectralFeatureAppend(18, trNorm)
+spec24_labels = spectralFeatureAppend(24, trNorm)
+
+
+cData = pd.concat([trNum,
+                   pd.Series(spec6_labels, name="Spectral_6"),
+                   pd.Series(spec10_labels, name="Spectral_10"),
+                   pd.Series(spec12_labels, name="Spectral_12"),
+                   pd.Series(spec14_labels, name="Spectral_14"),
+                   pd.Series(spec18_labels, name="Spectral_18"),
+                   pd.Series(spec24_labels, name="Spectral_24")],axis=1)
+
+#%%
+#sb.set(rc={"figure.figsize": (16, 16)})
+sb.lmplot("GrLivArea","SalePrice",cData,hue="Spectral_24",
+          fit_reg=False,size=10,aspect=1,scatter_kws={"s": 55, 'alpha':0.30})
+plt.legend()
+
+#<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>  
+
+#%%  Create new arrays with spectral clustering results
+
+train, test = train_test_split(cData, test_size = .30, random_state = 1010)
+# Train outcome and predictors 
+ySpec = train.SalePrice
+XSpec = train.drop('SalePrice', axis=1)
+# Test outcome and predictors
+ytSpec = test.SalePrice
+XtSpec = test.drop('SalePrice', axis=1)
 
     
 #%%
@@ -250,8 +240,8 @@ ycorr.drop(['SalePrice']).plot(kind='barh')
 #-------------------------------------------------------------------
 
 #Create a different normalized dataframe for PCA
-trPCA = (trNum - trNum.mean()) / trNum.std()
-
+trPCA = (cData - cData.mean()) / cData.std()
+#trPCA = (trNum - trNum.mean()) / trNum.std()
 i = np.identity(trPCA.drop('SalePrice', axis=1).shape[1])
 
 pca = PCA(n_components=5, random_state=1010)
@@ -264,10 +254,10 @@ pcp = pd.DataFrame(coef, columns = ['PC-1','PC-2','PC-3','PC-4','PC-5'],
 pcp['max'] = pcp.max(axis=1)
 pcp['sum'] = pcp.drop('max',axis=1).abs().sum(axis=1)
 
-pcp = pcp.sort_values(by=['max'], ascending=False)
+pcp = pcp.sort_values(by=['sum'], ascending=False)
 
-plt.rcParams['figure.figsize']=(10,20)
-sb.heatmap(pcp, annot=True, annot_kws={"size": 12})
+plt.rcParams['figure.figsize']=(12,15)
+sb.heatmap(pcp.ix[:50,:], annot=True, annot_kws={"size": 12})
 
 #%% Combine PCA results and Pearson Correlation results ---<><><><><><><><><><>
 
@@ -281,9 +271,23 @@ fsel['Feature'] = fsel.index
 comb = pd.merge(feat_imp,fsel,on='Feature')
 comb.index = comb.Feature
 comb = comb.drop('Feature',axis=1)
+comb = comb.sort_values(by=['sum'], ascending=False)
 sb.heatmap(comb, annot=True, annot_kws={"size": 12})
 
 #%%
+
+# Drop Spectral Predictors that rank low
+
+
+
+
+
+#%%
+#<> ----  Create new train and test sets based on top principal components ---
+#<><>
+#<><><>
+#<><><><>
+
 # -----  -----  save top components
 
 #conditional top
@@ -291,16 +295,10 @@ sb.heatmap(comb, annot=True, annot_kws={"size": 12})
 
 #sorted list
 pclist = list(pcp.index)
-
-#%%
-#<> ----  Create new train and test sets based on top principal components ---
-#<><>
-#<><><>
-#<><><><>
 #Set up training and test sets
-
-pcdata = pd.concat([trNum[pclist[0:45]],trNum['SalePrice']],axis=1)
-nmdata = pd.concat([trNorm[pclist[0:45]],trNorm['SalePrice']],axis=1)
+trNorm = (cData - cData.mean()) / (cData.max() - cData.min())
+pcdata = pd.concat([cData[pclist],cData['SalePrice']],axis=1)
+nmdata = pd.concat([trNorm[pclist],trNorm['SalePrice']],axis=1)
 #nmonly = pd.concat([trNum_norm[list(numht.drop('SalePrice',axis=1))],trNum_norm['SalePrice']],axis=1)
 
 train, test = train_test_split(pcdata, test_size = .30, random_state = 1010)
@@ -352,61 +350,13 @@ predict = gbfit.predict(Xtnorm)
 
 
 
-#%%
-# Show results of GBR with all variables
-
-sb.set_style('darkgrid')
-plt.rcParams['figure.figsize']=(10,8)
-plt.scatter(predict, yt)
-plt.suptitle('test title')
-plt.xlabel('Predicted')
-plt.ylabel('Ground Truth')
-
-print('Gradient Boosting Accuracy %s' % '{0:.2%}'.format(accuracy))
-#%%
-# Model feature importances ranking
-importances = gbfit.feature_importances_
-indices = np.argsort(importances)[::-1]
-
-print('Feature Importances')
-
-for f in range(X.shape[1]):
-    print("feature %s (%f)" % (list(X)[f], importances[indices[f]]))
-
-#plot
-feat_imp = pd.DataFrame({'Feature':list(X),
-                         'Gini Importance':importances[indices]})
-
-plt.rcParams['figure.figsize']=(8,12)
-sb.set_style('whitegrid')
-ax = sb.barplot(x='Gini Importance', y='Feature', data=feat_imp)
-ax.set(xlabel='Gini Importance')
-plt.show()    
+#%% 
 
 #_________________________________________________________________________________>  
 #_________________________________________________________________________________> 
 
 # End Gradient Boosting .. 
 #_________________________________________________________________________________>  
-htrain = htrain[htrain.GrLivArea > 4000]
-#_________________________________________________________________________________>  
-#_________________________________________________________________________________>    
-#########
-
-#%%
-#          ___ Combine All Feature Ranking data ___
-
-# --------------------- <><><><>< * * * * * * * * * * * * * * * * * ><><><><>
-corrdf = trNum.corr()
-ycorr = corrdf[['SalePrice']]
-ycorr = ycorr.rename(columns={'SalePrice':'YCorrelation'})
-fsel = pd.concat([ycorr.drop('SalePrice',axis=0), pcp], axis=1)
-fsel['Feature'] = fsel.index
-
-comb = pd.merge(feat_imp,fsel,on='Feature')
-comb.index = comb.Feature
-comb = comb.drop('Feature',axis=1)
-sb.heatmap(comb, annot=True, annot_kws={"size": 12})
 
 #%%
 #               ## ==== Model Training ==== ##
@@ -415,14 +365,22 @@ sb.heatmap(comb, annot=True, annot_kws={"size": 12})
 rf_fit = RandomForestRegressor(n_estimators=250)
 rf_fit.fit(X=Xnorm,y=ynorm)
 
-#%%
 rf_accuracy = rf_fit.score(Xtnorm, ytnorm)
+print('Random Forest Regressor Accuracy %s' % '{0:.2%}'.format(rf_accuracy))    
+# Cross_Validation
+v = cross_val_score(rf_fit, X, y, cv=10)
+for i in range(10):
+    print('Cross Validation Score: %s'%'{0:.2%}'.format(v[i,]))
 #%%#   ------- Linear Models --------
 reg = linear_model.Lasso(alpha=1.4, max_iter=2000)
 reg.fit(X,y)
-accuracy = reg.score(Xt,yt)
+lasso_accuracy = reg.score(Xt,yt)
 
-
+print('Lasso Regression Accuracy %s' % '{0:.2%}'.format(lasso_accuracy))    
+# Cross_Validation
+v = cross_val_score(reg, X, y, cv=10)
+for i in range(10):
+    print('Cross Validation Score: %s'%'{0:.2%}'.format(v[i,]))
 ########
 #######
 #%%
@@ -433,9 +391,16 @@ accuracy = reg.score(Xt,yt)
 #
 ######
 
+
 mlpreg = MLPRegressor(solver='lbfgs', alpha=.5, hidden_layer_sizes=(100,), random_state=10)
 mlpRfit = mlpreg.fit(Xnorm, ynorm)
-accuracy = mlpRfit.score(Xtnorm, ytnorm)
+mlpRaccuracy = mlpRfit.score(Xtnorm, ytnorm)
+
+print('MLP Regression Accuracy %s' % '{0:.2%}'.format(mlpRaccuracy))    
+# Cross_Validation
+v = cross_val_score(mlpRfit, X, y, cv=10)
+for i in range(10):
+    print('Cross Validation Score: %s'%'{0:.2%}'.format(v[i,]))
 
 
 #%%
@@ -463,10 +428,8 @@ accuracy = mlpRfit.score(Xtnorm, ytnorm)
 # .. need to create labels vector for 'mix type error (string and num)
 
 bins=5
-trNum['PriceRange'] = pd.cut(trNum.SalePrice, bins)
-trNorm['PriceRange'] = pd.cut(trNum.SalePrice, bins)
-
-#%%
+trNum['PriceRange'] = pd.cut(cData.SalePrice, bins)
+trNorm['PriceRange'] = pd.cut(cData.SalePrice, bins)
 #Set up training and test sets for classification
 
 #cats = pd.concat([trNum_norm,trNum_norm['PriceRange']],axis=1)
@@ -488,16 +451,26 @@ Xt = test.drop('PriceRange', axis=1)
 
 forest = RandomForestClassifier(n_estimators=1000, random_state=1010)
 rfit = forest.fit(X,y)
-accuracy = rfit.score(Xt,yt)
+rfc_accuracy = rfit.score(Xt,yt)
 
 
-
+print('Random Forest Classifier %s' % '{0:.2%}'.format(rfc_accuracy))    
+# Cross_Validation
+v = cross_val_score(rfit, X, y, cv=10)
+for i in range(10):
+    print('Cross Validation Score: %s'%'{0:.2%}'.format(v[i,]))
 #%%
 # >>>>>>>>>>>>>>> MLP Classifier <<<<<<<<<<<<<<<<<<<<<
 
 mlp = MLPClassifier(solver='lbfgs', alpha=5, hidden_layer_sizes=(500,), random_state=10)
 
-fit = mlp.fit(X,y)
-accuracy = fit.score(Xt,yt)
+mlpfit = mlp.fit(X,y)
+mlp_accuracy = mlpfit.score(Xt,yt)
+
+print('MLP Classifier %s' % '{0:.2%}'.format(mlp_accuracy))    
+# Cross_Validation
+v = cross_val_score(mlpfit, X, y, cv=10)
+for i in range(10):
+    print('Cross Validation Score: %s'%'{0:.2%}'.format(v[i,]))
 
 #%%

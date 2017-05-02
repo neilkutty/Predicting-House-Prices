@@ -159,7 +159,7 @@ py.plot(fig, filename='correlation')
 #     ----------- Plotly - Correlation Heatmap -----------
 #...............................................................
 corrdf = corrdf.sort_index(axis=1,ascending=True).sort_index(axis=0,ascending=True)
-l = go.Layout(title='Correlation of All Variables to Sale Price',
+l = go.Layout(title='Correlation of All Variables to Each Other',
 
       autosize=True,
               width=1000,
@@ -177,7 +177,7 @@ d = [go.Heatmap(
         z=corrdf.values.tolist(),
         x=corrdf.columns.tolist(),
         y=corrdf.index.tolist(),
-        colorscale='Jet')]
+        colorscale='RdBu')]
 
 fig = go.Figure(data=d,layout=l)
 #cf.iplot(fig, filename='correlation-heatmap')
