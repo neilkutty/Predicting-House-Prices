@@ -60,7 +60,16 @@ def convert_data(data):
     converted_data = converted_data.fillna(0)
     return converted_data
 #%%
-trNum = convert_data(htrain)
+full = pd.concat([htrain,htest],axis=0)
+full = full.fillna(0)
+full = full.reset_index()
+full_clean = convert_data(full)
+
+trNum = full_clean[full_clean.SalePrice != 0]
+trNum = trNum.reset_index().drop(['level_0','index'],axis=1)
+teNum = full_clean[full_clean.SalePrice == 0]
+teNum = teNum.reset_index().drop(['level_0','index'],axis=1)
+teNum = teNum.drop('SalePrice',axis=1)
 
 
 trNorm = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
@@ -107,7 +116,7 @@ models = [GradientBoostingRegressor(n_estimators=250,max_depth=2,loss='ls',rando
 sup = fit_model(models[1], X,y,Xt,yt)
 
 #%%
-
+specFit = fit_model(models[0],XSpec,ySpec,XtSpec,ytSpec)
 #<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
 #<><><><><><><><><>---------------------------------------------------<><><><><><><><><><><>    
 
@@ -191,19 +200,35 @@ def spectralFeatureAppend(clusters, data):
     sc = SpectralClustering(n_clusters=clusters,
                             eigen_solver='arpack',
                             affinity="rbf")
-    sc.fit(np.array(data.drop('SalePrice',axis=1)))
+    sc.fit(np.array(data))
     labels=sc.labels_.astype(np.int)
     return labels
 #%%
-spec6_labels = spectralFeatureAppend(6, trNum)
-spec10_labels = spectralFeatureAppend(10, trNum)
-spec12_labels = spectralFeatureAppend(12, trNum)
-spec14_labels = spectralFeatureAppend(14, trNum)
-spec18_labels = spectralFeatureAppend(18, trNum)
-spec24_labels = spectralFeatureAppend(24, trNum)
+spec6_labels = spectralFeatureAppend(6, trNum.drop('SalePrice',axis=1))
+spec10_labels = spectralFeatureAppend(10, trNum.drop('SalePrice',axis=1))
+spec12_labels = spectralFeatureAppend(12, trNum.drop('SalePrice',axis=1))
+spec14_labels = spectralFeatureAppend(14, trNum.drop('SalePrice',axis=1))
+spec18_labels = spectralFeatureAppend(18, trNum.drop('SalePrice',axis=1))
+spec24_labels = spectralFeatureAppend(24, trNum.drop('SalePrice',axis=1))
 
 
 cData = pd.concat([trNum,
+                   pd.Series(spec6_labels, name="Spectral_6"),
+                   pd.Series(spec10_labels, name="Spectral_10"),
+                   pd.Series(spec12_labels, name="Spectral_12"),
+                   pd.Series(spec14_labels, name="Spectral_14"),
+                   pd.Series(spec18_labels, name="Spectral_18"),
+                   pd.Series(spec24_labels, name="Spectral_24")],axis=1)
+  
+#%%
+spec6_labels = spectralFeatureAppend(6, teNum)
+spec10_labels = spectralFeatureAppend(10, teNum)
+spec12_labels = spectralFeatureAppend(12, teNum)
+spec14_labels = spectralFeatureAppend(14, teNum)
+spec18_labels = spectralFeatureAppend(18, teNum)
+spec24_labels = spectralFeatureAppend(24, teNum)
+    
+test_cData = pd.concat([teNum,
                    pd.Series(spec6_labels, name="Spectral_6"),
                    pd.Series(spec10_labels, name="Spectral_10"),
                    pd.Series(spec12_labels, name="Spectral_12"),
@@ -301,7 +326,7 @@ pcdata = pd.concat([cData[pclist],cData['SalePrice']],axis=1)
 nmdata = pd.concat([trNorm[pclist],trNorm['SalePrice']],axis=1)
 #nmonly = pd.concat([trNum_norm[list(numht.drop('SalePrice',axis=1))],trNum_norm['SalePrice']],axis=1)
 
-train, test = train_test_split(pcdata, test_size = .30, random_state = 1010)
+train, test = train_test_split(cData, test_size = .30, random_state = 1010)
 
 # Train outcome and predictors 
 y = train.SalePrice
