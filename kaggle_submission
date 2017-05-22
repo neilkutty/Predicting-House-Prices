@@ -1,10 +1,9 @@
-
+teNorm = (teNum - teNum.mean()) / (teNum.max() - teNum.min())
 #%%
-test_cData = test_cData.fillna(0)
-kaggle = gbfit.predict(test_cData)
+kaggle = gbfit.predict(teNum[pclist[0:55]])
 htest = pd.read_csv('test.csv')
 kag_submission = pd.DataFrame({'Id':htest.Id,
                                'SalePrice':kaggle})
-kag_submission = kag_submission.reset_index()
+
 
 kag_submission.to_csv('kuttyman_housepred.csv', index=False)

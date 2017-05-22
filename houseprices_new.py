@@ -61,6 +61,7 @@ def convert_data(data):
     return converted_data
 #%%
 trNum = convert_data(htrain)
+teNum = convert_data(htest)
 
 
 trNorm = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
@@ -118,7 +119,7 @@ sup = fit_model(models[1], X,y,Xt,yt)
 
 #-----------------------------------------------------------------
 #Set model parameters
-gbfit = GradientBoostingRegressor(n_estimators=250, max_depth=2, loss='ls', random_state=1010)
+gbfit = GradientBoostingRegressor(n_estimators=350, max_depth=3, loss='ls', random_state=1010)
 
 #Fit model
 gbfit.fit(X=X, y=y)
@@ -136,8 +137,9 @@ for i in range(10):
 #%% 
 # Model feature importances ranking
 
-indices = np.argsort(importances)[::-1]
 importances = gbfit.feature_importances_
+indices = np.argsort(importances)[::-1]
+
 print('Feature Importances')
 
 for f in range(X.shape[1]):
@@ -240,8 +242,8 @@ XtSpec = test.drop('SalePrice', axis=1)
 #-------------------------------------------------------------------
 
 #Create a different normalized dataframe for PCA
-trPCA = (cData - cData.mean()) / cData.std()
-#trPCA = (trNum - trNum.mean()) / trNum.std()
+#trPCA = (cData - cData.mean()) / cData.std()
+trPCA = (trNum - trNum.mean()) / trNum.std()
 i = np.identity(trPCA.drop('SalePrice', axis=1).shape[1])
 
 pca = PCA(n_components=5, random_state=1010)
@@ -296,8 +298,8 @@ sb.heatmap(comb, annot=True, annot_kws={"size": 12})
 #sorted list
 pclist = list(pcp.index)
 #Set up training and test sets
-trNorm = (cData - cData.mean()) / (cData.max() - cData.min())
-pcdata = pd.concat([cData[pclist],cData['SalePrice']],axis=1)
+trNorm = (trNum - trNum.mean()) / (trNum.max() - trNum.min())
+pcdata = pd.concat([trNum[pclist[0:55]],trNum['SalePrice']],axis=1)
 nmdata = pd.concat([trNorm[pclist],trNorm['SalePrice']],axis=1)
 #nmonly = pd.concat([trNum_norm[list(numht.drop('SalePrice',axis=1))],trNum_norm['SalePrice']],axis=1)
 
@@ -362,17 +364,17 @@ predict = gbfit.predict(Xtnorm)
 #               ## ==== Model Training ==== ##
 #
 #               ## ==== Random Forest Regressor ==== ##
-rf_fit = RandomForestRegressor(n_estimators=250)
-rf_fit.fit(X=Xnorm,y=ynorm)
+rf_fit = RandomForestRegressor(n_estimators=1000)
+rf_fit.fit(X=X,y=y)
 
-rf_accuracy = rf_fit.score(Xtnorm, ytnorm)
+rf_accuracy = rf_fit.score(Xt, yt)
 print('Random Forest Regressor Accuracy %s' % '{0:.2%}'.format(rf_accuracy))    
 # Cross_Validation
 v = cross_val_score(rf_fit, X, y, cv=10)
 for i in range(10):
     print('Cross Validation Score: %s'%'{0:.2%}'.format(v[i,]))
 #%%#   ------- Linear Models --------
-reg = linear_model.Lasso(alpha=1.4, max_iter=2000)
+reg = linear_model.Lasso(alpha=500, max_iter=2000)
 reg.fit(X,y)
 lasso_accuracy = reg.score(Xt,yt)
 
